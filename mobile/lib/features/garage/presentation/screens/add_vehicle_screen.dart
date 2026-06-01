@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:uuid/uuid.dart';
 
-import '../providers/garage_provider.dart';
+import '../providers/vehicle_provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../shared/models/models.dart';
 
@@ -82,7 +82,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
       createdAt: DateTime.now(),
     );
 
-    await ref.read(garageNotifierProvider.notifier).addVehicle(vehicle);
+    await ref.read(vehicleListProvider.notifier).addVehicle(vehicle);
 
     if (mounted) {
       setState(() => _isSubmitting = false);

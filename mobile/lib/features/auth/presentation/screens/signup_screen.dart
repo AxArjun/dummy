@@ -55,7 +55,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
       return;
     }
     if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authStateNotifierProvider.notifier).signUpWithEmailPassword(
+      ref.read(authStateProvider.notifier).signUpWithEmailPassword(
             _emailController.text.trim(),
             _passwordController.text,
             _nameController.text.trim(),
@@ -67,20 +67,19 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    ref.listen<AuthState>(authStateProvider, (previous, next) {
+    ref.listen<AsyncValue<User?>>(authStateProvider, (previous, next) {
       if (next.isAuthenticated && mounted) {
         context.go(AppRoutes.home);
       }
-      if (next.error != null && mounted) {
+      if (next.hasError && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(next.error!),
+            content: Text(next.error.toString()),
             backgroundColor: const Color(0xFFF44336),
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        ref.read(authStateNotifierProvider.notifier).clearError();
       }
     });
 

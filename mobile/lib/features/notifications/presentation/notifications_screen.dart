@@ -7,86 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/models/models.dart';
 
-// ─── Mock notifications provider ──────────────────────────────────────────────
-
-final _mockNotifications = [
-  AppNotification(
-    id: 'n001',
-    notificationType: NotificationType.serviceReminder,
-    title: 'Oil Change Due',
-    body:
-        'Your BMW 3 Series is due for an oil change. Last service was 5,000 km ago.',
-    isRead: false,
-    createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-  ),
-  AppNotification(
-    id: 'n002',
-    notificationType: NotificationType.weeklySummary,
-    title: 'Weekly Fuel Summary',
-    body:
-        'You spent ₹4,845 on fuel this week across 512 km. Efficiency: 8.9 L/100km.',
-    isRead: false,
-    createdAt: DateTime.now().subtract(const Duration(days: 1)),
-  ),
-  AppNotification(
-    id: 'n003',
-    notificationType: NotificationType.anomalyAlert,
-    title: 'Efficiency Drop Detected',
-    body:
-        'Your fuel efficiency dropped by 15% in the last fill-up. Consider checking tyre pressure.',
-    isRead: true,
-    readAt: DateTime.now().subtract(const Duration(days: 2)),
-    createdAt: DateTime.now().subtract(const Duration(days: 3)),
-  ),
-  AppNotification(
-    id: 'n004',
-    notificationType: NotificationType.monthlyReport,
-    title: 'May 2026 Report Ready',
-    body:
-        'Your monthly report for May 2026 is ready. Total spend: ₹12,442 across 3 fill-ups.',
-    isRead: true,
-    readAt: DateTime.now().subtract(const Duration(days: 3)),
-    createdAt: DateTime.now().subtract(const Duration(days: 4)),
-  ),
-  AppNotification(
-    id: 'n005',
-    notificationType: NotificationType.system,
-    title: 'Welcome to FuelIQ',
-    body:
-        'Start tracking your vehicle\'s fuel consumption to get personalized insights.',
-    isRead: true,
-    readAt: DateTime.now().subtract(const Duration(days: 7)),
-    createdAt: DateTime.now().subtract(const Duration(days: 7)),
-  ),
-];
-
-final notificationsStateProvider = StateNotifierProvider<NotificationsNotifier,
-    List<AppNotification>>((ref) {
-  return NotificationsNotifier();
-});
-
-class NotificationsNotifier extends StateNotifier<List<AppNotification>> {
-  NotificationsNotifier() : super(_mockNotifications);
-
-  void markRead(String notificationId) {
-    state = state.map((n) {
-      if (n.id == notificationId) {
-        return n.copyWith(isRead: true, readAt: DateTime.now());
-      }
-      return n;
-    }).toList();
-  }
-
-  void markAllRead() {
-    state = state
-        .map((n) => n.copyWith(isRead: true, readAt: DateTime.now()))
-        .toList();
-  }
-
-  void delete(String notificationId) {
-    state = state.where((n) => n.id != notificationId).toList();
-  }
-}
+import 'providers/notification_provider.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -147,7 +68,8 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final notifications = ref.watch(notificationsStateProvider);
+    final notificationsState = ref.watch(notificationsStateProvider);
+    final notifications = notificationsState.valueOrNull ?? [];
     final unreadCount = notifications.where((n) => !n.isRead).length;
 
     return Scaffold(
@@ -206,34 +128,38 @@ class NotificationsScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: notifications.isEmpty
-          ? _buildEmptyState()
-          : ListView.separated(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final notif = notifications[index];
-                return _NotificationCard(
-                  notification: notif,
-                  icon: _notifIcon(notif.notificationType),
-                  color: _notifColor(notif.notificationType),
-                  timeAgo: _timeAgo(notif.createdAt),
-                  onTap: () => ref
-                      .read(notificationsStateProvider.notifier)
-                      .markRead(notif.id),
-                  onDismiss: () => ref
-                      .read(notificationsStateProvider.notifier)
-                      .delete(notif.id),
-                )
-                    .animate()
-                    .fadeIn(
-                        delay: Duration(milliseconds: 60 * index),
-                        duration: 400.ms)
-                    .slideX(begin: 0.05, end: 0);
-              },
-            ),
+      body: notificationsState.isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: _gold, strokeWidth: 2.5))
+          : notifications.isEmpty
+              ? _buildEmptyState()
+              : ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  itemCount: notifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (context, index) {
+                    final notif = notifications[index];
+                    return _NotificationCard(
+                      notification: notif,
+                      icon: _notifIcon(notif.notificationType),
+                      color: _notifColor(notif.notificationType),
+                      timeAgo: _timeAgo(notif.createdAt),
+                      onTap: () => ref
+                          .read(notificationsStateProvider.notifier)
+                          .markRead(notif.id),
+                      onDismiss: () => ref
+                          .read(notificationsStateProvider.notifier)
+                          .delete(notif.id),
+                    )
+                        .animate()
+                        .fadeIn(
+                            delay: Duration(milliseconds: 60 * index),
+                            duration: 400.ms)
+                        .slideX(begin: 0.05, end: 0);
+                  },
+                ),
     );
   }
 

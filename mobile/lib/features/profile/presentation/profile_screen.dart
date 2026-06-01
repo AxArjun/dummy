@@ -6,9 +6,9 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../garage/presentation/providers/garage_provider.dart';
-import '../../../fuel/presentation/providers/fuel_provider.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
+import '../../garage/presentation/providers/vehicle_provider.dart';
+import '../../fuel/presentation/providers/fuel_provider.dart';
 import '../../../../core/router/app_router.dart';
 
 class ProfileScreen extends ConsumerWidget {
@@ -26,16 +26,16 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
-    final garageState = ref.watch(garageNotifierProvider);
-    final vehicleIds = garageState.vehicles.map((v) => v.id).toList();
+    final garageState = ref.watch(garageScreenStateProvider);
+    final vehicleIds = garageState.vehiclesState.valueOrNull?.map((v) => v.id).toList() ?? [];
 
     final totalLogs = vehicleIds.fold<int>(0, (sum, id) {
       final logs = ref.watch(fuelLogsProvider(id));
       return sum + logs.length;
     });
 
-    final displayName = authState.displayName ?? 'User';
-    final email = authState.email ?? 'user@example.com';
+    final displayName = authState.value?.displayName ?? 'User';
+    final email = authState.value?.email ?? 'user@example.com';
     final initials = displayName.isNotEmpty
         ? displayName.split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase()
         : 'U';
@@ -67,7 +67,7 @@ class ProfileScreen extends ConsumerWidget {
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: _buildProfileHero(
-                  initials, displayName, email, garageState.vehicles.length,
+                  initials, displayName, email, vehicleIds.length,
                   totalLogs),
             ),
           ),
@@ -81,7 +81,7 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
 
                   // ── Stats ─────────────────────────────────────────
-                  _buildStatsRow(garageState.vehicles.length, totalLogs)
+                  _buildStatsRow(vehicleIds.length, totalLogs)
                       .animate()
                       .fadeIn(delay: 150.ms, duration: 500.ms),
 
@@ -90,7 +90,7 @@ class ProfileScreen extends ConsumerWidget {
                   // ── Account section ───────────────────────────────
                   _buildSectionHeader('Account'),
                   const SizedBox(height: 12),
-                  _buildAccountSection(context, authState.email)
+                  _buildAccountSection(context, email)
                       .animate()
                       .fadeIn(delay: 250.ms, duration: 500.ms),
 
@@ -100,7 +100,7 @@ class ProfileScreen extends ConsumerWidget {
                   _buildSectionHeader('Vehicles'),
                   const SizedBox(height: 12),
                   _buildVehiclesSection(
-                      context, garageState.vehicles.length, totalLogs)
+                      context, vehicleIds.length, totalLogs)
                       .animate()
                       .fadeIn(delay: 350.ms, duration: 500.ms),
 
@@ -352,7 +352,7 @@ class ProfileScreen extends ConsumerWidget {
                   onPressed: () async {
                     Navigator.pop(ctx);
                     await ref
-                        .read(authStateNotifierProvider.notifier)
+                        .read(authStateProvider.notifier)
                         .signOut();
                     if (context.mounted) context.go(AppRoutes.login);
                   },

@@ -6,7 +6,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image/image.dart' as img;
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-import '../../shared/models/models.dart';
+import '../../../shared/models/models.dart';
 
 part 'ocr_service.g.dart';
 
@@ -173,14 +173,14 @@ class OcrService {
 
 /// Confidence level interpretation for UI display
 extension ParsedReceiptDataX on ParsedReceiptData {
-  bool get isVolumeConfident => volumeConfidence >= 0.75;
-  bool get isPriceConfident => priceConfidence >= 0.75;
-  bool get isTotalConfident => totalConfidence >= 0.75;
-  bool get isDateConfident => dateConfidence >= 0.75;
+  bool get isVolumeConfident => this.volumeConfidence >= 0.75;
+  bool get isPriceConfident => this.priceConfidence >= 0.75;
+  bool get isTotalConfident => this.totalConfidence >= 0.75;
+  bool get isDateConfident => this.dateConfidence >= 0.75;
   
   /// Overall confidence as a percentage string
   String get overallConfidenceText {
-    final avg = (volumeConfidence + priceConfidence + totalConfidence + dateConfidence) / 4;
+    final avg = (this.volumeConfidence + this.priceConfidence + this.totalConfidence + this.dateConfidence) / 4;
     if (avg >= 0.85) return 'High confidence';
     if (avg >= 0.65) return 'Medium confidence';
     return 'Low confidence — please verify';
@@ -189,10 +189,10 @@ extension ParsedReceiptDataX on ParsedReceiptData {
   /// Fields count that were successfully extracted
   int get extractedFieldCount {
     int count = 0;
-    if (volumeLiters != null) count++;
-    if (pricePerLiter != null) count++;
-    if (totalAmount != null) count++;
-    if (date != null) count++;
+    if (this.volumeLiters != null) count++;
+    if (this.pricePerLiter != null) count++;
+    if (this.totalAmount != null) count++;
+    if (this.date != null) count++;
     return count;
   }
 }

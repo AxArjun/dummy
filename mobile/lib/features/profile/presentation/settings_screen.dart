@@ -7,83 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/router/app_router.dart';
+import '../../auth/presentation/providers/auth_provider.dart';
 
-// ─── Settings Provider ────────────────────────────────────────────────────────
-
-class SettingsState {
-  const SettingsState({
-    this.darkMode = true,
-    this.notifications = true,
-    this.serviceAlerts = true,
-    this.weeklyReports = true,
-    this.distanceUnit = 'km',
-    this.volumeUnit = 'L',
-    this.currency = 'INR',
-  });
-
-  final bool darkMode;
-  final bool notifications;
-  final bool serviceAlerts;
-  final bool weeklyReports;
-  final String distanceUnit;
-  final String volumeUnit;
-  final String currency;
-
-  SettingsState copyWith({
-    bool? darkMode,
-    bool? notifications,
-    bool? serviceAlerts,
-    bool? weeklyReports,
-    String? distanceUnit,
-    String? volumeUnit,
-    String? currency,
-  }) {
-    return SettingsState(
-      darkMode: darkMode ?? this.darkMode,
-      notifications: notifications ?? this.notifications,
-      serviceAlerts: serviceAlerts ?? this.serviceAlerts,
-      weeklyReports: weeklyReports ?? this.weeklyReports,
-      distanceUnit: distanceUnit ?? this.distanceUnit,
-      volumeUnit: volumeUnit ?? this.volumeUnit,
-      currency: currency ?? this.currency,
-    );
-  }
-}
-
-final settingsProvider =
-    StateNotifierProvider<SettingsNotifier, SettingsState>((ref) {
-  return SettingsNotifier();
-});
-
-class SettingsNotifier extends StateNotifier<SettingsState> {
-  SettingsNotifier() : super(const SettingsState());
-
-  void toggle(String key) {
-    switch (key) {
-      case 'darkMode':
-        state = state.copyWith(darkMode: !state.darkMode);
-        break;
-      case 'notifications':
-        state = state.copyWith(notifications: !state.notifications);
-        break;
-      case 'serviceAlerts':
-        state = state.copyWith(serviceAlerts: !state.serviceAlerts);
-        break;
-      case 'weeklyReports':
-        state = state.copyWith(weeklyReports: !state.weeklyReports);
-        break;
-    }
-  }
-
-  void setDistanceUnit(String unit) =>
-      state = state.copyWith(distanceUnit: unit);
-  void setVolumeUnit(String unit) =>
-      state = state.copyWith(volumeUnit: unit);
-  void setCurrency(String currency) =>
-      state = state.copyWith(currency: currency);
-}
+import 'providers/profile_provider.dart';
+import '../data/profile_repository.dart';
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -92,15 +19,16 @@ class SettingsScreen extends ConsumerWidget {
 
   static const Color _bg = Color(0xFF0B0B0B);
   static const Color _card = Color(0xFF1A1A1A);
+  static const _primaryBlueDark = Color(0xFF1E3A8A);
   static const Color _border = Color(0xFF262626);
-  static const Color _gold = Color(0xFFD4AF37);
   static const Color _textPrimary = Color(0xFFF5F5F5);
   static const Color _textSub = Color(0xFF9E9E9E);
   static const Color _danger = Color(0xFFF44336);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final settings = ref.watch(settingsProvider);
+    final profileState = ref.watch(profileProvider);
+    final settings = profileState.valueOrNull ?? const SettingsState();
 
     return Scaffold(
       backgroundColor: _bg,
@@ -129,7 +57,11 @@ class SettingsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      body: SingleChildScrollView(
+      body: profileState.isLoading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: Color(0xFFD4AF37), strokeWidth: 2.5))
+          : SingleChildScrollView(
         physics: const ClampingScrollPhysics(),
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -151,7 +83,7 @@ class SettingsScreen extends ConsumerWidget {
                 subtitle: 'Premium dark automotive theme',
                 value: settings.darkMode,
                 onChanged: (_) =>
-                    ref.read(settingsProvider.notifier).toggle('darkMode'),
+                    ref.read(profileProvider.notifier).toggle('darkMode'),
               ),
             ).animate().fadeIn(duration: 400.ms),
 
@@ -174,7 +106,7 @@ class SettingsScreen extends ConsumerWidget {
                     subtitle: 'Receive alerts and reminders',
                     value: settings.notifications,
                     onChanged: (_) => ref
-                        .read(settingsProvider.notifier)
+                        .read(profileProvider.notifier)
                         .toggle('notifications'),
                   ),
                   const Divider(color: _border, height: 1),
@@ -185,7 +117,7 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.serviceAlerts,
                     onChanged: settings.notifications
                         ? (_) => ref
-                            .read(settingsProvider.notifier)
+                            .read(profileProvider.notifier)
                             .toggle('serviceAlerts')
                         : null,
                   ),
@@ -197,7 +129,7 @@ class SettingsScreen extends ConsumerWidget {
                     value: settings.weeklyReports,
                     onChanged: settings.notifications
                         ? (_) => ref
-                            .read(settingsProvider.notifier)
+                            .read(profileProvider.notifier)
                             .toggle('weeklyReports')
                         : null,
                   ),
@@ -225,7 +157,7 @@ class SettingsScreen extends ConsumerWidget {
                     options: const ['km', 'miles'],
                     value: settings.distanceUnit,
                     onChanged: (v) => ref
-                        .read(settingsProvider.notifier)
+                        .read(profileProvider.notifier)
                         .setDistanceUnit(v!),
                   ),
                   const Divider(color: _border, height: 1),
@@ -236,7 +168,7 @@ class SettingsScreen extends ConsumerWidget {
                     options: const ['L', 'gal'],
                     value: settings.volumeUnit,
                     onChanged: (v) => ref
-                        .read(settingsProvider.notifier)
+                        .read(profileProvider.notifier)
                         .setVolumeUnit(v!),
                   ),
                   const Divider(color: _border, height: 1),
@@ -247,7 +179,7 @@ class SettingsScreen extends ConsumerWidget {
                     options: const ['INR', 'USD', 'EUR', 'GBP'],
                     value: settings.currency,
                     onChanged: (v) =>
-                        ref.read(settingsProvider.notifier).setCurrency(v!),
+                        ref.read(profileProvider.notifier).setCurrency(v!),
                   ),
                 ],
               ),
@@ -386,7 +318,7 @@ class _SettingsToggle extends StatelessWidget {
   final bool value;
   final ValueChanged<bool>? onChanged;
 
-  static const Color _gold = Color(0xFFD4AF37);
+  static const Color _accent = Color(0xFFD4AF37);
   static const Color _textPrimary = Color(0xFFF5F5F5);
   static const Color _textSub = Color(0xFF9E9E9E);
 
@@ -399,10 +331,10 @@ class _SettingsToggle extends StatelessWidget {
         width: 38,
         height: 38,
         decoration: BoxDecoration(
-          color: _gold.withOpacity(0.1),
+          color: _accent.withOpacity(0.1),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: _gold, size: 18),
+        child: Icon(icon, color: _accent, size: 18),
       ),
       title: Text(
         title,
@@ -424,8 +356,8 @@ class _SettingsToggle extends StatelessWidget {
       trailing: Switch(
         value: value,
         onChanged: onChanged,
-        activeColor: _gold,
-        activeTrackColor: _gold.withOpacity(0.3),
+        activeThumbColor: _accent,
+        activeTrackColor: _accent.withOpacity(0.3),
         inactiveTrackColor: const Color(0xFF262626),
         inactiveThumbColor: const Color(0xFF9E9E9E),
       ),

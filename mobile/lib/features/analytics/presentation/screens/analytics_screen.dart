@@ -30,6 +30,7 @@ class AnalyticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fuelState = ref.watch(fuelNotifierProvider(vehicleId));
+    final logs = fuelState.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: _bg,
@@ -62,9 +63,9 @@ class AnalyticsScreen extends ConsumerWidget {
           ? const Center(
               child: CircularProgressIndicator(
                   color: _gold, strokeWidth: 2.5))
-          : fuelState.logs.isEmpty
+          : logs.isEmpty
               ? _buildEmptyState()
-              : _buildContent(context, fuelState.logs),
+              : _buildContent(context, logs),
     );
   }
 

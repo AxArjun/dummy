@@ -27,6 +27,7 @@ class FuelHistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final fuelState = ref.watch(fuelNotifierProvider(vehicleId));
+    final logs = fuelState.valueOrNull ?? [];
 
     return Scaffold(
       backgroundColor: _bg,
@@ -72,7 +73,7 @@ class FuelHistoryScreen extends ConsumerWidget {
             ? const Center(
                 child: CircularProgressIndicator(
                     color: _gold, strokeWidth: 2.5))
-            : fuelState.logs.isEmpty
+            : logs.isEmpty
                 ? _buildEmptyState(context)
                 : CustomScrollView(
                     slivers: [
@@ -80,7 +81,7 @@ class FuelHistoryScreen extends ConsumerWidget {
                       SliverToBoxAdapter(
                         child: Padding(
                           padding: const EdgeInsets.all(16),
-                          child: _buildSummaryRow(fuelState.logs),
+                          child: _buildSummaryRow(logs),
                         ),
                       ),
 
@@ -90,7 +91,7 @@ class FuelHistoryScreen extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 4),
                           child: Text(
-                            '${fuelState.logs.length} entries',
+                            '${logs.length} entries',
                             style: const TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 13,
@@ -107,7 +108,7 @@ class FuelHistoryScreen extends ConsumerWidget {
                         sliver: SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, index) {
-                              final log = fuelState.logs[index];
+                              final log = logs[index];
                               return Padding(
                                 padding:
                                     const EdgeInsets.only(bottom: 12),
@@ -120,7 +121,7 @@ class FuelHistoryScreen extends ConsumerWidget {
                                     .slideX(begin: 0.1, end: 0),
                               );
                             },
-                            childCount: fuelState.logs.length,
+                            childCount: logs.length,
                           ),
                         ),
                       ),

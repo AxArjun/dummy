@@ -6,7 +6,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../providers/garage_provider.dart';
+import '../providers/vehicle_provider.dart';
 import '../../../../core/router/app_router.dart';
 import '../../../../shared/models/models.dart';
 
@@ -40,14 +40,14 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final garageState = ref.watch(garageNotifierProvider);
+    final garageState = ref.watch(garageScreenStateProvider);
 
     return Scaffold(
       backgroundColor: _bg,
       body: RefreshIndicator(
         color: _gold,
         backgroundColor: _card,
-        onRefresh: () => ref.read(garageNotifierProvider.notifier).refresh(),
+        onRefresh: () => ref.read(vehicleListProvider.notifier).refresh(),
         child: CustomScrollView(
           slivers: [
             // ── App Bar ──────────────────────────────────────────────────
@@ -112,7 +112,7 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
             ),
 
             // ── Vehicle list ─────────────────────────────────────────
-            if (garageState.isLoading)
+            if (garageState.vehiclesState.isLoading)
               SliverFillRemaining(child: _buildLoadingState())
             else if (garageState.filteredVehicles.isEmpty)
               SliverFillRemaining(child: _buildEmptyState())
@@ -143,7 +143,7 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
           ],
         ),
       ),
-      floatingActionButton: garageState.isLoading
+      floatingActionButton: garageState.vehiclesState.isLoading
           ? null
           : FloatingActionButton.extended(
               onPressed: () => context.go(AppRoutes.addVehicle),
@@ -167,11 +167,11 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
     );
   }
 
-  Widget _buildSearchBar(GarageState garageState) {
+  Widget _buildSearchBar(GarageScreenState garageState) {
     return TextField(
       controller: _searchController,
       onChanged: (query) =>
-          ref.read(garageNotifierProvider.notifier).setSearchQuery(query),
+          ref.read(vehicleSearchQueryProvider.notifier).state = query,
       style: const TextStyle(
         fontFamily: 'Inter',
         color: _textPrimary,
@@ -190,8 +190,8 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
                 onPressed: () {
                   _searchController.clear();
                   ref
-                      .read(garageNotifierProvider.notifier)
-                      .setSearchQuery('');
+                      .read(vehicleSearchQueryProvider.notifier)
+                      .state = '';
                 },
               )
             : null,
@@ -213,7 +213,7 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
     );
   }
 
-  Widget _buildFilterChips(GarageState garageState) {
+  Widget _buildFilterChips(GarageScreenState garageState) {
     final fuelTypes = [null, FuelType.petrol, FuelType.diesel, FuelType.electric, FuelType.cng];
     final labels = ['All', 'Petrol', 'Diesel', 'Electric', 'CNG'];
 
@@ -227,8 +227,8 @@ class _GarageScreenState extends ConsumerState<GarageScreen> {
           final isSelected = garageState.filterFuelType == fuelTypes[index];
           return GestureDetector(
             onTap: () => ref
-                .read(garageNotifierProvider.notifier)
-                .setFilter(fuelTypes[index]),
+                .read(vehicleFilterProvider.notifier)
+                .state = fuelTypes[index],
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding:
