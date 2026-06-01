@@ -7,7 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/fuel/presentation/providers/fuel_provider.dart';
+import '../../fuel/presentation/providers/fuel_provider.dart';
 import '../../../../shared/models/models.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
@@ -302,8 +302,8 @@ class AnalyticsScreen extends ConsumerWidget {
             );
           }),
         ),
-        duration: const Duration(milliseconds: 800),
-        curve: Curves.easeOutQuart,
+        swapAnimationDuration: const Duration(milliseconds: 800),
+        swapAnimationCurve: Curves.easeOutQuart,
       ),
     );
   }
@@ -554,8 +554,8 @@ class AnalyticsScreen extends ConsumerWidget {
             );
           }),
         ),
-        duration: const Duration(milliseconds: 800),
-        curve: Curves.easeOutQuart,
+        swapAnimationDuration: const Duration(milliseconds: 800),
+        swapAnimationCurve: Curves.easeOutQuart,
       ),
     );
   }

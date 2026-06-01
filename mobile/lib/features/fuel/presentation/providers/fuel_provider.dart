@@ -6,7 +6,7 @@ import '../../../../shared/models/models.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../shared/models/models.dart';
-import '../data/fuel_repository.dart';
+import '../../data/fuel_repository.dart';
 
 // ─── Fuel Notifier ────────────────────────────────────────────────────────────
 

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../shared/models/models.dart';
-import '../data/vehicle_repository.dart';
+import '../../data/vehicle_repository.dart';
 
 // ─── Search and Filter State ──────────────────────────────────────────────────
 

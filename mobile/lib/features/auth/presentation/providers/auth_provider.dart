@@ -8,7 +8,9 @@ import 'package:clerk_auth/clerk_auth.dart' as clerk;
 
 // ─── Extension for Router Contract ────────────────────────────────────────────
 
-extension AuthStateX on AsyncValue<clerk.User?> {
+typedef AuthState = AsyncValue<clerk.User?>;
+
+extension AuthStateX on AuthState {
   bool get isAuthenticated => hasValue && value != null;
 }
 
@@ -31,11 +33,12 @@ class AuthNotifier extends AsyncNotifier<clerk.User?> {
     state = const AsyncLoading();
     try {
       final authState = ClerkAuth.of(context, listen: false);
-      final signIn = await authState.client.signIn.create(identifier: email, password: password);
-      
-      if (signIn.status == clerk.SignInStatus.complete) {
-        await authState.client.session?.create(signIn.createdSessionId!);
-      } else {
+      await authState.attemptSignIn(
+        strategy: clerk.Strategy.password,
+        identifier: email,
+        password: password,
+      );
+      if (authState.client.signIn?.status != clerk.Status.complete) {
         throw Exception("Sign in requires further steps (MFA, etc).");
       }
       state = AsyncData(authState.user);
@@ -49,15 +52,15 @@ class AuthNotifier extends AsyncNotifier<clerk.User?> {
     state = const AsyncLoading();
     try {
       final authState = ClerkAuth.of(context, listen: false);
-      final signUp = await authState.client.signUp.create(
+      await authState.attemptSignUp(
+        strategy: clerk.Strategy.password,
         emailAddress: email,
         password: password,
         firstName: name,
       );
       
       // Usually sign up requires email verification.
-      if (signUp.status == clerk.SignUpStatus.complete) {
-        await authState.client.session?.create(signUp.createdSessionId!);
+      if (authState.client.signUp?.status == clerk.Status.complete) {
         state = AsyncData(authState.user);
       } else {
         // We'll mock immediate completion for now or throw if unverified
@@ -73,7 +76,7 @@ class AuthNotifier extends AsyncNotifier<clerk.User?> {
     state = const AsyncLoading();
     try {
       final authState = ClerkAuth.of(context, listen: false);
-      await authState.client.session?.revoke();
+      await authState.signOut();
       state = const AsyncData(null);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
