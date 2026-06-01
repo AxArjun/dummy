@@ -32,7 +32,6 @@ dependencies:
   connectivity_plus: ^6.0.3
 
   # ─── Auth ──────────────────────────────────────────────────
-  clerk_flutter: ^0.3.0
   flutter_secure_storage: ^9.0.0
 
   # ─── Local Storage ─────────────────────────────────────────
