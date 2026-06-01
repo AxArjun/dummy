@@ -1,0 +1,238 @@
+name: FuelIQ CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}/fueliq-api
+
+jobs:
+  # ─── Backend Tests ───────────────────────────────────────────────────────────
+  backend-test:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: fueliq_test
+          POSTGRES_USER: fueliq_test
+          POSTGRES_PASSWORD: test_password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run migrations
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://fueliq_test:test_password@localhost:5432/fueliq_test
+          APP_ENV: testing
+          SECRET_KEY: test-secret-key-not-for-production
+          CLERK_PUBLISHABLE_KEY: pk_test_dummy
+          CLERK_SECRET_KEY: sk_test_dummy
+          CLERK_JWKS_URL: https://dummy.clerk.dev/.well-known/jwks.json
+          CLERK_ISSUER: https://dummy.clerk.dev
+          S3_ENDPOINT_URL: http://localhost:9000
+          S3_ACCESS_KEY: minioadmin
+          S3_SECRET_KEY: miniopassword
+          S3_BUCKET_NAME: fueliq-test
+          FIREBASE_SERVICE_ACCOUNT_JSON: "{}"
+        run: alembic upgrade head
+
+      - name: Run tests with coverage
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://fueliq_test:test_password@localhost:5432/fueliq_test
+          REDIS_URL: redis://localhost:6379/0
+          APP_ENV: testing
+          SECRET_KEY: test-secret-key-not-for-production
+          CLERK_PUBLISHABLE_KEY: pk_test_dummy
+          CLERK_SECRET_KEY: sk_test_dummy
+          CLERK_JWKS_URL: https://dummy.clerk.dev/.well-known/jwks.json
+          CLERK_ISSUER: https://dummy.clerk.dev
+          S3_ENDPOINT_URL: http://localhost:9000
+          S3_ACCESS_KEY: minioadmin
+          S3_SECRET_KEY: miniopassword
+          S3_BUCKET_NAME: fueliq-test
+          FIREBASE_SERVICE_ACCOUNT_JSON: "{}"
+        run: |
+          pytest tests/ \
+            --cov=app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-fail-under=70 \
+            -v \
+            --asyncio-mode=auto
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./backend/coverage.xml
+
+  # ─── Security Scan ───────────────────────────────────────────────────────────
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Bandit (Python SAST)
+        working-directory: ./backend
+        run: |
+          pip install bandit
+          bandit -r app/ -ll -x tests/ --format json -o bandit-report.json || true
+
+      - name: Run Safety (dependency vulnerabilities)
+        working-directory: ./backend
+        run: |
+          pip install safety
+          safety check -r requirements.txt --json > safety-report.json || true
+
+      - name: Upload security reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: |
+            backend/bandit-report.json
+            backend/safety-report.json
+
+  # ─── Docker Build ────────────────────────────────────────────────────────────
+  docker-build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    if: github.ref == 'refs/heads/main'
+    
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+
+  # ─── Deploy to Staging ───────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [docker-build]
+    if: github.ref == 'refs/heads/main'
+    environment: staging
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/fueliq
+            
+            # Pull new image
+            docker pull ghcr.io/${{ github.repository }}/fueliq-api:latest
+            
+            # Rolling update — zero downtime
+            docker compose up -d --no-deps --build api worker beat
+            
+            # Run migrations
+            docker compose run --rm migrate
+            
+            # Health check
+            sleep 10
+            curl -f http://localhost:8000/health || exit 1
+            
+            # Cleanup old images
+            docker image prune -f
+
+  # ─── Deploy to Production ────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    if: github.ref == 'refs/heads/main'
+    environment: production  # Requires manual approval in GitHub
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to Production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.PROD_HOST }}
+          username: ${{ secrets.PROD_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          script: |
+            cd /opt/fueliq
+            docker pull ghcr.io/${{ github.repository }}/fueliq-api:latest
+            docker compose up -d --no-deps api worker beat
+            docker compose run --rm migrate
+            sleep 15
+            curl -f https://api.fueliq.app/health || exit 1
