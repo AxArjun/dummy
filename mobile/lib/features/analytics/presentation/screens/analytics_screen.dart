@@ -7,7 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../fuel/presentation/providers/fuel_provider.dart';
+import '../../../fuel/presentation/providers/fuel_provider.dart';
 import '../../../../shared/models/models.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
