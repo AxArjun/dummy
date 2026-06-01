@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:clerk_flutter/clerk_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'core/router/app_router.dart';
 import 'shared/theme/app_theme.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -31,18 +34,40 @@ void main() async {
   // Initialize Firebase
   await Firebase.initializeApp();
 
+  // Initialize dotenv
+  await dotenv.load(fileName: ".env");
+
   runApp(
-    const ProviderScope(
-      child: FuelIQApp(),
+    ClerkAuth(
+      config: ClerkAuthConfig(
+        publishableKey: dotenv.env['CLERK_PUBLISHABLE_KEY'] ?? '',
+      ),
+      child: const ProviderScope(
+        child: FuelIQApp(),
+      ),
     ),
   );
 }
 
-class FuelIQApp extends ConsumerWidget {
+class FuelIQApp extends ConsumerStatefulWidget {
   const FuelIQApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<FuelIQApp> createState() => _FuelIQAppState();
+}
+
+class _FuelIQAppState extends ConsumerState<FuelIQApp> {
+  @override
+  Widget build(BuildContext context) {
+    // Listen to ClerkAuth and sync with Riverpod
+    final clerkState = ClerkAuth.of(context);
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(authStateProvider.notifier).syncWithClerk(clerkState.user);
+      }
+    });
+
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

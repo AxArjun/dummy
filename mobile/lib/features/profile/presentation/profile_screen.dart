@@ -34,7 +34,7 @@ class ProfileScreen extends ConsumerWidget {
       return sum + logs.length;
     });
 
-    final displayName = authState.value?.displayName ?? 'User';
+    final displayName = authState.value?.name ?? 'User';
     final email = authState.value?.email ?? 'user@example.com';
     final initials = displayName.isNotEmpty
         ? displayName.split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase()
@@ -351,9 +351,7 @@ class ProfileScreen extends ConsumerWidget {
                 TextButton(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    await ref
-                        .read(authStateProvider.notifier)
-                        .signOut();
+                    ref.read(authStateProvider.notifier).signOut(context);
                     if (context.mounted) context.go(AppRoutes.login);
                   },
                   child: const Text(

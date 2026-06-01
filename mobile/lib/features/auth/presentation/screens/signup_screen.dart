@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../../../../core/router/app_router.dart';
+import 'package:clerk_auth/clerk_auth.dart' as clerk;
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -56,6 +57,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     }
     if (_formKey.currentState?.validate() ?? false) {
       ref.read(authStateProvider.notifier).signUpWithEmailPassword(
+            context,
             _emailController.text.trim(),
             _passwordController.text,
             _nameController.text.trim(),
@@ -67,7 +69,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
 
-    ref.listen<AsyncValue<User?>>(authStateProvider, (previous, next) {
+    ref.listen(authStateProvider, (previous, next) {
       if (next.isAuthenticated && mounted) {
         context.go(AppRoutes.home);
       }
