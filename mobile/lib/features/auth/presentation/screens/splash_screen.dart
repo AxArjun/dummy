@@ -32,6 +32,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
+
+    // Evaluate initial auth state after allowing animations to play
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        final authState = ref.read(authStateProvider);
+        if (!authState.isLoading) {
+          if (authState.isAuthenticated) {
+            context.go(AppRoutes.home);
+          } else {
+            context.go(AppRoutes.login);
+          }
+        }
+      }
+    });
   }
 
   @override

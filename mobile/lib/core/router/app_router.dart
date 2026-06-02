@@ -48,6 +48,46 @@ GoRouter appRouter(AppRouterRef ref) {
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     redirect: (context, state) {
+
+  print("========== ROUTER ==========");
+  print("LOCATION: ${state.matchedLocation}");
+  print("AUTH LOADING: ${authState.isLoading}");
+  print("AUTH VALUE: ${authState.value}");
+
+  final isAuthenticated = authState.isAuthenticated;
+  final isAuthRoute =
+      state.matchedLocation == AppRoutes.login ||
+      state.matchedLocation == AppRoutes.signup ||
+      state.matchedLocation == AppRoutes.splash;
+
+  print("IS AUTHENTICATED: $isAuthenticated");
+  print("IS AUTH ROUTE: $isAuthRoute");
+
+  if (authState.isLoading) {
+    print("AUTH STILL LOADING");
+    return null;
+  }
+
+  if (!isAuthenticated && !isAuthRoute) {
+    print("REDIRECT -> LOGIN");
+    return AppRoutes.login;
+  }
+
+  if (isAuthenticated &&
+      state.matchedLocation == AppRoutes.login) {
+    print("REDIRECT -> HOME");
+    return AppRoutes.home;
+  }
+
+  if (isAuthenticated &&
+      state.matchedLocation == AppRoutes.splash) {
+    print("REDIRECT -> HOME");
+    return AppRoutes.home;
+  }
+
+  print("NO REDIRECT");
+  return null;
+},
       final isAuthenticated = authState.isAuthenticated;
       final isAuthRoute = state.matchedLocation == AppRoutes.login ||
           state.matchedLocation == AppRoutes.signup ||

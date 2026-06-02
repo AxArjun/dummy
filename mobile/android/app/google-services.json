@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "976961985273",
+    "project_id": "fueliq-e41a3",
+    "storage_bucket": "fueliq-e41a3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:976961985273:android:221ce6eb6a8d5325b6e028",
+        "android_client_info": {
+          "package_name": "com.fueliq.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCaOqblFA5yX0AEKZ8XWlEwQbnpemYrqAc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

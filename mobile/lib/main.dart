@@ -14,11 +14,15 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  print("STEP 0 - APP START");
+
   // Lock to portrait
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+
+  print("STEP 1 - ORIENTATION SET");
 
   // Status bar style
   SystemChrome.setSystemUIOverlayStyle(
@@ -28,19 +32,34 @@ void main() async {
     ),
   );
 
+  print("STEP 2 - STATUS BAR OK");
+
   // Initialize Hive
   await Hive.initFlutter();
+
+  print("STEP 3 - HIVE OK");
 
   // Initialize Firebase
   await Firebase.initializeApp();
 
+  print("STEP 4 - FIREBASE OK");
+
   // Initialize dotenv
   await dotenv.load(fileName: ".env");
+
+  print("STEP 5 - DOTENV OK");
+
+  print(
+    "CLERK KEY: ${dotenv.env['CLERK_PUBLISHABLE_KEY']}",
+  );
+
+  print("STEP 6 - RUNAPP");
 
   runApp(
     ClerkAuth(
       config: ClerkAuthConfig(
-        publishableKey: dotenv.env['CLERK_PUBLISHABLE_KEY'] ?? '',
+        publishableKey:
+            dotenv.env['CLERK_PUBLISHABLE_KEY'] ?? '',
       ),
       child: const ProviderScope(
         child: FuelIQApp(),
@@ -59,26 +78,35 @@ class FuelIQApp extends ConsumerStatefulWidget {
 class _FuelIQAppState extends ConsumerState<FuelIQApp> {
   @override
   Widget build(BuildContext context) {
-    // Listen to ClerkAuth and sync with Riverpod
+    print("BUILDING APP");
+
     final clerkState = ClerkAuth.of(context);
-    
+
+    print("CLERK USER: ${clerkState.user}");
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(authStateProvider.notifier).syncWithClerk(clerkState.user);
+        print("SYNCING CLERK USER");
+        ref
+            .read(authStateProvider.notifier)
+            .syncWithClerk(clerkState.user);
       }
     });
 
+    print("WATCHING ROUTER");
+
     final router = ref.watch(appRouterProvider);
+
+    print("ROUTER CREATED");
 
     return MaterialApp.router(
       title: 'FuelIQ',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
-      themeMode: ThemeMode.dark, // Default to dark theme — premium automotive feel
+      themeMode: ThemeMode.dark,
       routerConfig: router,
       debugShowCheckedModeBanner: false,
       builder: (context, child) {
-        // Global media query override for consistent text scaling
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: const TextScaler.linear(1.0),

@@ -93,5 +93,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   generate: true
+
+  assets:
+    - .env
+
 dependency_overrides:
   clerk_auth: 0.0.14-beta
