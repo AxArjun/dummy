@@ -1,101 +1,103 @@
-name: fueliq
-description: FuelIQ — Vehicle Intelligence Platform
-version: 1.0.0+1
-publish_to: "none"
+  name: fueliq
+  description: FuelIQ — Vehicle Intelligence Platform
+  version: 1.0.0+1
+  publish_to: "none"
 
-environment:
-  sdk: ">=3.3.0 <4.0.0"
-  flutter: ">=3.19.0"
+  environment:
+    sdk: ">=3.3.0 <4.0.0"
+    flutter: ">=3.19.0"
 
-dependencies:
+  dependencies:
+    flutter:
+      sdk: flutter
+
+    # State Management
+    flutter_riverpod: ^2.5.1
+    riverpod_annotation: ^2.3.5
+    hooks_riverpod: ^2.5.1
+    flutter_hooks: ^0.20.5
+
+    # Navigation
+    go_router: ^13.2.0
+
+    # Data Models
+    freezed_annotation: ^2.4.1
+    json_annotation: ^4.9.0
+
+    # Network
+    retrofit: 4.1.0
+    dio: ^5.4.3
+    dio_cache_interceptor: ^3.5.0
+    pretty_dio_logger: ^1.3.1
+    connectivity_plus: ^6.0.3
+
+    # Auth
+    flutter_secure_storage: ^9.0.0
+    clerk_flutter: 0.0.14-beta
+    clerk_auth: 0.0.14-beta
+    flutter_dotenv: ^6.0.1
+
+    # Local Storage
+    hive_flutter: ^1.1.0
+    shared_preferences: ^2.2.3
+
+    # Notifications
+    firebase_core: ^2.31.0
+    firebase_messaging: ^14.9.1
+    flutter_local_notifications: ^17.1.2
+
+    # OCR
+    google_mlkit_text_recognition: ^0.13.0
+    camera: ^0.10.5+9
+    image_picker: ^1.1.2
+    image: ^4.1.7
+
+    # UI
+    fl_chart: ^0.67.0
+    cached_network_image: ^3.3.1
+    shimmer: ^3.0.0
+    lottie: ^3.1.0
+    flutter_animate: ^4.5.0
+    gap: ^3.0.1
+    intl: ^0.20.2
+
+    # Utils
+    uuid: ^4.3.3
+    logger: ^2.3.0
+    package_info_plus: ^8.0.0
+    url_launcher: ^6.3.0
+    path_provider: ^2.1.3
+
+  dev_dependencies:
+    flutter_test:
+      sdk: flutter
+
+    integration_test:
+      sdk: flutter
+
+    # Code Generation
+    build_runner: ^2.4.8
+    freezed: ^2.5.2
+    json_serializable: ^6.7.1
+    retrofit_generator: 8.1.0
+    riverpod_generator: ^2.3.11
+
+    # Testing
+    mocktail: ^1.0.3
+    fake_async: ^1.3.1
+    golden_toolkit: ^0.15.0
+
+    # Linting
+    flutter_lints: ^4.0.0
+    very_good_analysis: ^6.0.0
+
   flutter:
-    sdk: flutter
+    uses-material-design: true
+    generate: true
 
-  # State Management
-  flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
-  hooks_riverpod: ^2.5.1
-  flutter_hooks: ^0.20.5
+    assets:
+      - .env
 
-  # Navigation
-  go_router: ^13.2.0
+  dependency_overrides:
+    clerk_auth: 0.0.14-beta
 
-  # Data Models
-  freezed_annotation: ^2.4.1
-  json_annotation: ^4.9.0
-
-  # Network
-  retrofit: 4.1.0
-  dio: ^5.4.3
-  dio_cache_interceptor: ^3.5.0
-  pretty_dio_logger: ^1.3.1
-  connectivity_plus: ^6.0.3
-
-  # Auth
-  flutter_secure_storage: ^9.0.0
-  clerk_flutter: 0.0.14-beta
-  flutter_dotenv: ^6.0.1
-
-  # Local Storage
-  hive_flutter: ^1.1.0
-  shared_preferences: ^2.2.3
-
-  # Notifications
-  firebase_core: ^2.31.0
-  firebase_messaging: ^14.9.1
-  flutter_local_notifications: ^17.1.2
-
-  # OCR
-  google_mlkit_text_recognition: ^0.13.0
-  camera: ^0.10.5+9
-  image_picker: ^1.1.2
-  image: ^4.1.7
-
-  # UI
-  fl_chart: ^0.67.0
-  cached_network_image: ^3.3.1
-  shimmer: ^3.0.0
-  lottie: ^3.1.0
-  flutter_animate: ^4.5.0
-  gap: ^3.0.1
-  intl: ^0.20.2
-
-  # Utils
-  uuid: ^4.3.3
-  logger: ^2.3.0
-  package_info_plus: ^8.0.0
-  url_launcher: ^6.3.0
-  path_provider: ^2.1.3
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-
-  integration_test:
-    sdk: flutter
-
-  # Code Generation
-  build_runner: ^2.4.8
-  freezed: ^2.5.2
-  json_serializable: ^6.7.1
-  retrofit_generator: 8.1.0
-  riverpod_generator: ^2.3.11
-
-  # Testing
-  mocktail: ^1.0.3
-  fake_async: ^1.3.1
-  golden_toolkit: ^0.15.0
-
-  # Linting
-  flutter_lints: ^4.0.0
-  very_good_analysis: ^6.0.0
-
-flutter:
-  uses-material-design: true
-  generate: true
-
-  assets:
-    - .env
-
-dependency_overrides:
-  clerk_auth: 0.0.14-beta

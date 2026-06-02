@@ -1,13 +1,8 @@
-// FuelIQ — Splash Screen
-// Animated brand intro with auth state redirect
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
-import '../../../../core/router/app_router.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -33,17 +28,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       duration: const Duration(seconds: 2),
     )..repeat(reverse: true);
 
-    // Evaluate initial auth state after allowing animations to play
+    // After animations complete, notify the router that it may proceed.
+    // Navigation is entirely handled by GoRouter's redirect logic.
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
-        final authState = ref.read(authStateProvider);
-        if (!authState.isLoading) {
-          if (authState.isAuthenticated) {
-            context.go(AppRoutes.home);
-          } else {
-            context.go(AppRoutes.login);
-          }
-        }
+        ref.read(splashTimerProvider.notifier).state = true;
       }
     });
   }
@@ -56,21 +45,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<AuthState>(authStateProvider, (previous, next) {
-      if (!next.isLoading && mounted) {
-        if (next.isAuthenticated) {
-          context.go(AppRoutes.home);
-        } else {
-          context.go(AppRoutes.login);
-        }
-      }
-    });
-
     return Scaffold(
       backgroundColor: _bg,
       body: Stack(
         children: [
-          // ── Background radial glow ──────────────────────────────────────
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
@@ -85,17 +63,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               ),
             ),
           ),
-
-          // ── Content ─────────────────────────────────────────────────────
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // Logo
                 _buildLogo(),
                 const SizedBox(height: 32),
-
-                // Brand name
                 Text(
                   'FuelIQ',
                   style: const TextStyle(
@@ -109,9 +82,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     .animate()
                     .fadeIn(delay: 400.ms, duration: 700.ms)
                     .slideY(begin: 0.3, end: 0),
-
                 const SizedBox(height: 12),
-
                 Text(
                   'Vehicle Intelligence Platform',
                   style: const TextStyle(
@@ -124,16 +95,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 )
                     .animate()
                     .fadeIn(delay: 700.ms, duration: 600.ms),
-
                 const SizedBox(height: 72),
-
-                // Loading indicator
                 _buildLoadingDots(),
               ],
             ),
           ),
-
-          // ── Version tag ─────────────────────────────────────────────────
           Positioned(
             bottom: 48,
             left: 0,

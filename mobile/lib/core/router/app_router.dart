@@ -1,6 +1,3 @@
-// FuelIQ — Go Router Configuration
-// Feature-first routing with auth guards and shell routes
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -23,7 +20,6 @@ import '../../shared/screens/not_found_screen.dart';
 
 part 'app_router.g.dart';
 
-/// Route names — type-safe constants
 class AppRoutes {
   static const splash = '/';
   static const login = '/login';
@@ -43,72 +39,42 @@ class AppRoutes {
 @riverpod
 GoRouter appRouter(AppRouterRef ref) {
   final authState = ref.watch(authStateProvider);
+  final isSplashFinished = ref.watch(splashTimerProvider);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     redirect: (context, state) {
-
-  print("========== ROUTER ==========");
-  print("LOCATION: ${state.matchedLocation}");
-  print("AUTH LOADING: ${authState.isLoading}");
-  print("AUTH VALUE: ${authState.value}");
-
-  final isAuthenticated = authState.isAuthenticated;
-  final isAuthRoute =
-      state.matchedLocation == AppRoutes.login ||
-      state.matchedLocation == AppRoutes.signup ||
-      state.matchedLocation == AppRoutes.splash;
-
-  print("IS AUTHENTICATED: $isAuthenticated");
-  print("IS AUTH ROUTE: $isAuthRoute");
-
-  if (authState.isLoading) {
-    print("AUTH STILL LOADING");
-    return null;
-  }
-
-  if (!isAuthenticated && !isAuthRoute) {
-    print("REDIRECT -> LOGIN");
-    return AppRoutes.login;
-  }
-
-  if (isAuthenticated &&
-      state.matchedLocation == AppRoutes.login) {
-    print("REDIRECT -> HOME");
-    return AppRoutes.home;
-  }
-
-  if (isAuthenticated &&
-      state.matchedLocation == AppRoutes.splash) {
-    print("REDIRECT -> HOME");
-    return AppRoutes.home;
-  }
-
-  print("NO REDIRECT");
-  return null;
-},
+      final isLoading = authState.isLoading;
       final isAuthenticated = authState.isAuthenticated;
-      final isAuthRoute = state.matchedLocation == AppRoutes.login ||
-          state.matchedLocation == AppRoutes.signup ||
-          state.matchedLocation == AppRoutes.splash;
+      final matched = state.matchedLocation;
 
-      // Loading state — stay on splash
-      if (authState.isLoading) return null;
+      // Handle Splash Screen Logic First
+      if (matched == AppRoutes.splash) {
+        if (!isSplashFinished || isLoading) {
+          // Stay on splash until timer finishes AND auth resolves
+          return null;
+        }
+        // Splash timer is done & auth is loaded, redirect appropriately
+        return isAuthenticated ? AppRoutes.home : AppRoutes.login;
+      }
 
-      // Not authenticated — redirect to login
+      // If auth is still loading for some reason on other routes, stay where we are
+      if (isLoading) return null;
+
+      final isAuthRoute = matched == AppRoutes.login || matched == AppRoutes.signup;
+
+      // Unauthenticated users must go to login
       if (!isAuthenticated && !isAuthRoute) {
         return AppRoutes.login;
       }
 
-      // Authenticated — skip auth screens
-      if (isAuthenticated && state.matchedLocation == AppRoutes.login) {
-        return AppRoutes.home;
-      }
-      if (isAuthenticated && state.matchedLocation == AppRoutes.splash) {
+      // Authenticated users shouldn't see auth routes
+      if (isAuthenticated && isAuthRoute) {
         return AppRoutes.home;
       }
 
+      // No redirect needed
       return null;
     },
     routes: [
@@ -133,8 +99,6 @@ GoRouter appRouter(AppRouterRef ref) {
           child: const SignupScreen(),
         ),
       ),
-
-      // ── Main Shell ─────────────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => HomeScreen(child: child),
         routes: [

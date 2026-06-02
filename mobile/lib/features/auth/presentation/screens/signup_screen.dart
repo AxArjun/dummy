@@ -43,28 +43,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() {
-    if (!_agreedToTerms) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Please agree to the Terms of Service'),
-          backgroundColor: const Color(0xFFF44336),
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
-      return;
-    }
-    if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authStateProvider.notifier).signUpWithEmailPassword(
-            context,
-            _emailController.text.trim(),
-            _passwordController.text,
-            _nameController.text.trim(),
-          );
-    }
-  }
+void _handleSignUp() {
+  debugPrint("========== SIGNUP DEBUG ==========");
+  debugPrint("EMAIL: ${_emailController.text}");
+  debugPrint("PASSWORD: ${_passwordController.text}");
+  debugPrint("CONFIRM: ${_confirmPasswordController.text}");
+  debugPrint(
+    "MATCHES: ${_passwordController.text == _confirmPasswordController.text}",
+  );
 
+  if (_formKey.currentState?.validate() ?? false) {
+    ref.read(authStateProvider.notifier).signUpWithEmailPassword(
+      context,
+      _emailController.text.trim(),
+      _passwordController.text,
+      _confirmPasswordController.text,
+      _nameController.text.trim(),
+    );
+  }
+}
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authStateProvider);
