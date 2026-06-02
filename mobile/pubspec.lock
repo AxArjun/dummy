@@ -210,13 +210,13 @@ packages:
     source: hosted
     version: "2.0.4"
   clerk_auth:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
       name: clerk_auth
-      sha256: "18801f84dbfad84bf3ab71b964e5a91870c03d8142c183ab536e053e6d737d54"
+      sha256: "9dba5fe674de759f46d5501230f954d4841f1a9497113fd62a61440ae4931c8d"
       url: "https://pub.dev"
     source: hosted
-    version: "0.0.15-beta"
+    version: "0.0.14-beta"
   clerk_flutter:
     dependency: "direct main"
     description:
