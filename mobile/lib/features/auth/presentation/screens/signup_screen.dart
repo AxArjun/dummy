@@ -1,5 +1,6 @@
-// FuelIQ — Sign Up Screen
-// Account creation with luxury automotive design
+// FuelIQ — Signup Screen (Production)
+// Fixed: Uses authNotifierProvider, no manual navigation (router handles redirect
+// to /verify on AuthVerificationPending state).
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,7 +9,6 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../../../../core/router/app_router.dart';
-import 'package:clerk_auth/clerk_auth.dart' as clerk;
 
 class SignupScreen extends ConsumerStatefulWidget {
   const SignupScreen({super.key});
@@ -23,8 +23,9 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
   bool _obscurePassword = true;
-  bool _obscureConfirm = true;
+  bool _obscureConfirmPassword = true;
   bool _agreedToTerms = false;
 
   static const Color _bg = Color(0xFF0B0B0B);
@@ -43,42 +44,63 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
     super.dispose();
   }
 
-void _handleSignUp() {
-  debugPrint("========== SIGNUP DEBUG ==========");
-  debugPrint("EMAIL: ${_emailController.text}");
-  debugPrint("PASSWORD: ${_passwordController.text}");
-  debugPrint("CONFIRM: ${_confirmPasswordController.text}");
-  debugPrint(
-    "MATCHES: ${_passwordController.text == _confirmPasswordController.text}",
-  );
-
-  if (_formKey.currentState?.validate() ?? false) {
-    ref.read(authStateProvider.notifier).signUpWithEmailPassword(
-      context,
-      _emailController.text.trim(),
-      _passwordController.text,
-      _confirmPasswordController.text,
-      _nameController.text.trim(),
-    );
+  void _handleSignUp() {
+    if (!_agreedToTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Please accept the terms to continue.'),
+          backgroundColor: const Color(0xFFF44336),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
+    if (_formKey.currentState?.validate() ?? false) {
+      ref.read(authNotifierProvider.notifier).signUpWithEmailPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text,
+            confirmPassword: _confirmPasswordController.text,
+            name: _nameController.text.trim(),
+          );
+      // No context.go() — the router detects AuthVerificationPending
+      // and automatically redirects to /verify.
+    }
   }
-}
+
+  void _handleGoogleSignUp() {
+    ref.read(authNotifierProvider.notifier).signInWithGoogle(context);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
+    final authStatus = ref.watch(authNotifierProvider);
+    final isLoading = authStatus is AuthLoading;
 
-    ref.listen(authStateProvider, (previous, next) {
-      if (next.isAuthenticated && mounted) {
-        context.go(AppRoutes.home);
-      }
-      if (next.hasError && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.error.toString()),
-            backgroundColor: const Color(0xFFF44336),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+    ref.listen<AuthStatus>(authNotifierProvider, (previous, next) {
+      if (next is AuthError && mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                next.failure.userMessage,
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14),
+              ),
+              backgroundColor: const Color(0xFFF44336),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ref.read(authNotifierProvider.notifier).clearError();
+                },
+              ),
+            ),
+          );
       }
     });
 
@@ -86,19 +108,17 @@ void _handleSignUp() {
       backgroundColor: _bg,
       body: Stack(
         children: [
-          // Background glow
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.topCenter,
-                  radius: 1.0,
-                  colors: [Color(0x12D4AF37), Color(0x00000000)],
+                  radius: 1.2,
+                  colors: [Color(0x1AD4AF37), Color(0x00000000)],
                 ),
               ),
             ),
           ),
-
           SafeArea(
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
@@ -107,42 +127,16 @@ void _handleSignUp() {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const SizedBox(height: 20),
-
-                    // Back button
-                    GestureDetector(
-                      onTap: () => context.go(AppRoutes.login),
-                      child: Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: _card,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _border),
-                        ),
-                        child: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          color: _textPrimary,
-                          size: 16,
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Header
+                    const SizedBox(height: 40),
                     _buildHeader(),
-
                     const SizedBox(height: 36),
-
-                    // Form
-                    _buildFormCard(authState),
-
-                    const SizedBox(height: 32),
-
-                    // Sign in link
-                    _buildSignInLink(),
-
+                    _buildFormCard(isLoading),
+                    const SizedBox(height: 24),
+                    _buildDivider(),
+                    const SizedBox(height: 20),
+                    _buildGoogleButton(isLoading),
+                    const SizedBox(height: 24),
+                    _buildLoginLink(),
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -194,38 +188,34 @@ void _handleSignUp() {
               ),
             ),
           ],
-        ).animate().fadeIn(duration: 400.ms),
+        ).animate().fadeIn(duration: 500.ms).slideX(begin: -0.2, end: 0),
         const SizedBox(height: 20),
         const Text(
           'Create Your Account',
           style: TextStyle(
             fontFamily: 'Inter',
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
             color: _textPrimary,
             letterSpacing: -0.3,
           ),
-        ).animate().fadeIn(delay: 150.ms, duration: 500.ms),
+        ).animate().fadeIn(delay: 200.ms),
         const SizedBox(height: 6),
         const Text(
-          'Start tracking your vehicle intelligence',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            color: _textSub,
-          ),
-        ).animate().fadeIn(delay: 250.ms, duration: 500.ms),
+          'Start tracking fuel. Save money. Drive smarter.',
+          style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _textSub),
+        ).animate().fadeIn(delay: 350.ms),
       ],
     );
   }
 
-  Widget _buildFormCard(AuthState authState) {
+  Widget _buildFormCard(bool isLoading) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1),
+        border: Border.all(color: _border),
       ),
       child: Form(
         key: _formKey,
@@ -236,17 +226,16 @@ void _handleSignUp() {
             const SizedBox(height: 8),
             _buildTextField(
               controller: _nameController,
-              hint: 'John Smith',
+              hint: 'John Doe',
               prefixIcon: Icons.person_outline_rounded,
+              textCapitalization: TextCapitalization.words,
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Name is required';
-                if (v.trim().length < 2) return 'Name is too short';
+                if (v == null || v.trim().isEmpty) return 'Full name is required';
+                if (v.trim().length < 2) return 'Name must be at least 2 characters';
                 return null;
               },
             ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 18),
             _buildLabel('Email Address'),
             const SizedBox(height: 8),
             _buildTextField(
@@ -256,19 +245,17 @@ void _handleSignUp() {
               prefixIcon: Icons.mail_outline_rounded,
               validator: (v) {
                 if (v == null || v.trim().isEmpty) return 'Email is required';
-                final re = RegExp(r'^[^@]+@[^@]+\.[^@]+');
-                if (!re.hasMatch(v.trim())) return 'Enter a valid email';
+                final regex = RegExp(r'^[^@]+@[^@]+\.[^@]+');
+                if (!regex.hasMatch(v.trim())) return 'Enter a valid email';
                 return null;
               },
             ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 18),
             _buildLabel('Password'),
             const SizedBox(height: 8),
             _buildTextField(
               controller: _passwordController,
-              hint: 'Min 8 characters',
+              hint: '••••••••',
               obscureText: _obscurePassword,
               prefixIcon: Icons.lock_outline_rounded,
               suffixIcon: IconButton(
@@ -284,134 +271,93 @@ void _handleSignUp() {
               ),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Password is required';
-                if (v.length < 8) return 'Minimum 8 characters';
+                if (v.length < 8) return 'At least 8 characters required';
                 return null;
               },
             ),
-
-            const SizedBox(height: 20),
-
+            const SizedBox(height: 18),
             _buildLabel('Confirm Password'),
             const SizedBox(height: 8),
             _buildTextField(
               controller: _confirmPasswordController,
-              hint: 'Re-enter your password',
-              obscureText: _obscureConfirm,
+              hint: '••••••••',
+              obscureText: _obscureConfirmPassword,
               prefixIcon: Icons.lock_outline_rounded,
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscureConfirm
+                  _obscureConfirmPassword
                       ? Icons.visibility_off_outlined
                       : Icons.visibility_outlined,
                   color: _textSub,
                   size: 20,
                 ),
-                onPressed: () =>
-                    setState(() => _obscureConfirm = !_obscureConfirm),
+                onPressed: () => setState(
+                    () => _obscureConfirmPassword = !_obscureConfirmPassword),
               ),
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Please confirm password';
-                if (v != _passwordController.text) {
-                  return 'Passwords do not match';
-                }
+                if (v == null || v.isEmpty) return 'Please confirm your password';
+                if (v != _passwordController.text) return 'Passwords do not match';
                 return null;
               },
             ),
-
             const SizedBox(height: 20),
-
-            // Terms
-            GestureDetector(
-              onTap: () =>
-                  setState(() => _agreedToTerms = !_agreedToTerms),
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: Checkbox(
-                      value: _agreedToTerms,
-                      onChanged: (v) =>
-                          setState(() => _agreedToTerms = v ?? false),
-                      activeColor: _gold,
-                      side: const BorderSide(color: _border, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4)),
+            // Terms checkbox
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: Checkbox(
+                    value: _agreedToTerms,
+                    onChanged: (v) =>
+                        setState(() => _agreedToTerms = v ?? false),
+                    activeColor: _gold,
+                    side: const BorderSide(color: _border, width: 1.5),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: RichText(
-                      text: const TextSpan(
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 13,
-                          color: _textSub,
-                        ),
-                        children: [
-                          TextSpan(text: 'I agree to the '),
-                          TextSpan(
-                            text: 'Terms of Service',
-                            style: TextStyle(
-                              color: _gold,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          TextSpan(text: ' and '),
-                          TextSpan(
-                            text: 'Privacy Policy',
-                            style: TextStyle(
-                              color: _gold,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Create account button
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                onPressed: authState.isLoading ? null : _handleSignUp,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _gold,
-                  foregroundColor: const Color(0xFF0B0B0B),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  disabledBackgroundColor: _gold.withOpacity(0.5),
                 ),
-                child: authState.isLoading
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: Color(0xFF0B0B0B),
-                        ),
-                      )
-                    : const Text(
-                        'Create Account',
-                        style: TextStyle(
-                          fontFamily: 'Inter',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                        ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: RichText(
+                    text: const TextSpan(
+                      style: TextStyle(
+                        fontFamily: 'Inter',
+                        fontSize: 12,
+                        color: _textSub,
+                        height: 1.5,
                       ),
-              ),
+                      children: [
+                        TextSpan(text: 'I agree to the '),
+                        TextSpan(
+                          text: 'Terms of Service',
+                          style: TextStyle(
+                            color: _gold,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        TextSpan(text: ' and '),
+                        TextSpan(
+                          text: 'Privacy Policy',
+                          style: TextStyle(
+                            color: _gold,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
+            const SizedBox(height: 28),
+            _buildCreateButton(isLoading),
           ],
         ),
       ),
-    ).animate().fadeIn(delay: 350.ms, duration: 600.ms).slideY(begin: 0.15, end: 0);
+    ).animate().fadeIn(delay: 400.ms, duration: 600.ms).slideY(begin: 0.15, end: 0);
   }
 
   Widget _buildLabel(String text) {
@@ -434,12 +380,14 @@ void _handleSignUp() {
     bool obscureText = false,
     IconData? prefixIcon,
     Widget? suffixIcon,
+    TextCapitalization textCapitalization = TextCapitalization.none,
     String? Function(String?)? validator,
   }) {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
       obscureText: obscureText,
+      textCapitalization: textCapitalization,
       validator: validator,
       style: const TextStyle(
         fontFamily: 'Inter',
@@ -486,14 +434,125 @@ void _handleSignUp() {
     );
   }
 
-  Widget _buildSignInLink() {
+  Widget _buildCreateButton(bool isLoading) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : _handleSignUp,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _gold,
+          foregroundColor: const Color(0xFF0B0B0B),
+          elevation: 0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          disabledBackgroundColor: _gold.withOpacity(0.5),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 22,
+                height: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: Color(0xFF0B0B0B),
+                ),
+              )
+            : const Text(
+                'Create Account',
+                style: TextStyle(
+                  fontFamily: 'Inter',
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.3,
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildDivider() {
+    return Row(
+      children: const [
+        Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'OR',
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 12,
+              color: Color(0xFF4A4A4A),
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
+      ],
+    ).animate().fadeIn(delay: 600.ms);
+  }
+
+  Widget _buildGoogleButton(bool isLoading) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: OutlinedButton(
+        onPressed: isLoading ? null : _handleGoogleSignUp,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _textPrimary,
+          side: const BorderSide(color: Color(0xFF262626), width: 1),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          backgroundColor: const Color(0xFF1A1A1A),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 20,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+              ),
+              child: const Center(
+                child: Text(
+                  'G',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4285F4),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Continue with Google',
+              style: TextStyle(
+                fontFamily: 'Inter',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: _textPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ).animate().fadeIn(delay: 700.ms);
+  }
+
+  Widget _buildLoginLink() {
     return Center(
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text(
             'Already have an account? ',
-            style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _textSub),
+            style: TextStyle(
+              fontFamily: 'Inter',
+              fontSize: 14,
+              color: _textSub,
+            ),
           ),
           GestureDetector(
             onTap: () => context.go(AppRoutes.login),
@@ -509,6 +568,6 @@ void _handleSignUp() {
           ),
         ],
       ),
-    ).animate().fadeIn(delay: 700.ms);
+    ).animate().fadeIn(delay: 800.ms);
   }
 }

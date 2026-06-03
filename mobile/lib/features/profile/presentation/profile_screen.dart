@@ -25,7 +25,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authStateProvider);
+    final clerkUser = ref.watch(currentUserProvider);
     final garageState = ref.watch(garageScreenStateProvider);
     final vehicleIds = garageState.vehiclesState.valueOrNull?.map((v) => v.id).toList() ?? [];
 
@@ -34,11 +34,16 @@ class ProfileScreen extends ConsumerWidget {
       return sum + logs.length;
     });
 
-    final displayName = authState.value?.name ?? 'User';
-    final email = authState.value?.email ?? 'user@example.com';
-    final initials = displayName.isNotEmpty
-        ? displayName.split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase()
-        : 'U';
+    final firstName = clerkUser?.firstName ?? '';
+    final lastName  = clerkUser?.lastName  ?? '';
+    final displayName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final resolvedName = displayName.isNotEmpty ? displayName : 'User';
+    final emailList = clerkUser?.emailAddresses;
+    final email = (emailList != null && emailList.isNotEmpty)
+        ? emailList.first.emailAddress
+        : 'user@example.com';
+    final initials = resolvedName
+        .split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase();
 
     return Scaffold(
       backgroundColor: _bg,
@@ -67,7 +72,7 @@ class ProfileScreen extends ConsumerWidget {
             ],
             flexibleSpace: FlexibleSpaceBar(
               background: _buildProfileHero(
-                  initials, displayName, email, vehicleIds.length,
+                  initials, resolvedName, email, vehicleIds.length,
                   totalLogs),
             ),
           ),
@@ -351,8 +356,8 @@ class ProfileScreen extends ConsumerWidget {
                 TextButton(
                   onPressed: () async {
                     Navigator.pop(ctx);
-                    ref.read(authStateProvider.notifier).signOut(context);
-                    if (context.mounted) context.go(AppRoutes.login);
+                    await ref.read(authNotifierProvider.notifier).signOut();
+                    // Router redirect handles navigation to /login automatically.
                   },
                   child: const Text(
                     'Sign Out',

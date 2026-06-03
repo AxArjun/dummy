@@ -1,11 +1,12 @@
-// FuelIQ — Dio HTTP Client + Interceptors
-// Production network layer with token refresh, retry, and logging
+// FuelIQ — Dio HTTP Client + Interceptors (Production)
+// Fixed: AuthInterceptor now uses Clerk session tokens via Riverpod Ref.
+// TokenStorage.getAccessToken() was always null — removed dependency.
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../auth/token_storage.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 
 const _kBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
@@ -14,13 +15,15 @@ const _kBaseUrl = String.fromEnvironment(
 const _kConnectTimeout = Duration(seconds: 15);
 const _kReceiveTimeout = Duration(seconds: 30);
 
-/// Provider for the main Dio instance
+/// Provider for the main Dio instance.
+/// AuthInterceptor receives a token-getter closure backed by the Clerk session.
 final dioProvider = Provider<Dio>((ref) {
-  final tokenStorage = ref.read(tokenStorageProvider);
-  return _buildDio(tokenStorage);
+  return _buildDio(
+    getToken: () => ref.read(authNotifierProvider.notifier).getSessionToken(),
+  );
 });
 
-Dio _buildDio(TokenStorage tokenStorage) {
+Dio _buildDio({required Future<String?> Function() getToken}) {
   final dio = Dio(
     BaseOptions(
       baseUrl: _kBaseUrl,
@@ -37,11 +40,10 @@ Dio _buildDio(TokenStorage tokenStorage) {
 
   // Add interceptors (order matters — outermost first)
   dio.interceptors.addAll([
-    AuthInterceptor(tokenStorage, dio),
+    AuthInterceptor(getToken, dio),
     RetryInterceptor(dio),
     ErrorInterceptor(),
-    if (const bool.fromEnvironment('dart.vm.product') == false)
-      LoggingInterceptor(),
+    if (!kReleaseMode) LoggingInterceptor(),
   ]);
 
   return dio;
@@ -49,57 +51,58 @@ Dio _buildDio(TokenStorage tokenStorage) {
 
 // ─── Auth Interceptor ─────────────────────────────────────────────────────────
 
+/// Attaches the Clerk session JWT to every outbound request.
+/// On 401, retrieves a fresh token and retries once.
 class AuthInterceptor extends Interceptor {
-  final TokenStorage _tokenStorage;
+  final Future<String?> Function() _getToken;
   final Dio _dio;
 
-  AuthInterceptor(this._tokenStorage, this._dio);
+  AuthInterceptor(this._getToken, this._dio);
 
   @override
   void onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    // Skip auth for public endpoints
+    // Allow individual requests to opt out of auth
     if (options.extra['skipAuth'] == true) {
       return handler.next(options);
     }
 
-    final token = await _tokenStorage.getAccessToken();
+    // Fetch the live Clerk session token (cached internally by Clerk until expiry)
+    final token = await _getToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
 
-    // Inject request ID for tracing
+    // Inject request ID for backend tracing / log correlation
     options.headers['X-Request-ID'] = _generateRequestId();
-    
+
     handler.next(options);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     if (err.response?.statusCode == 401) {
-      // Token expired — attempt refresh via Clerk
+      // Session may have expired between requests. Try to get a fresh token.
       try {
-        final newToken = await _tokenStorage.refreshToken();
+        final newToken = await _getToken();
         if (newToken != null) {
-          // Retry the original request
           final options = err.requestOptions;
           options.headers['Authorization'] = 'Bearer $newToken';
-          
           final response = await _dio.fetch(options);
           return handler.resolve(response);
         }
-      } catch (e) {
-        // Refresh failed — force re-login
-        await _tokenStorage.clearTokens();
+      } catch (_) {
+        // Fresh token fetch failed — session is truly expired.
+        // Router will redirect to /login via AuthUnauthenticated state.
       }
     }
     handler.next(err);
   }
 
   String _generateRequestId() {
-    return DateTime.now().millisecondsSinceEpoch.toString();
+    return DateTime.now().millisecondsSinceEpoch.toRadixString(36);
   }
 }
 
@@ -115,13 +118,10 @@ class RetryInterceptor extends Interceptor {
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final retryCount = err.requestOptions.extra['retryCount'] as int? ?? 0;
-
-    // Only retry on network errors or 5xx (not client errors)
     final shouldRetry = _shouldRetry(err) && retryCount < _maxRetries;
 
     if (shouldRetry) {
-      await Future.delayed(_retryDelay * (retryCount + 1)); // Exponential backoff
-
+      await Future.delayed(_retryDelay * (retryCount + 1));
       err.requestOptions.extra['retryCount'] = retryCount + 1;
 
       try {
@@ -139,8 +139,7 @@ class RetryInterceptor extends Interceptor {
     return err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.connectionError ||
-        (err.response?.statusCode != null &&
-            err.response!.statusCode! >= 500);
+        (err.response?.statusCode != null && err.response!.statusCode! >= 500);
   }
 }
 
@@ -161,24 +160,25 @@ class ErrorInterceptor extends Interceptor {
   }
 }
 
-// ─── Logging Interceptor (Dev Only) ──────────────────────────────────────────
+// ─── Logging Interceptor (Dev Only) ───────────────────────────────────────────
 
 class LoggingInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    debugPrintSynchronously('→ ${options.method} ${options.uri}');
+    debugPrint('→ ${options.method} ${options.uri}');
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    debugPrintSynchronously('← ${response.statusCode} ${response.requestOptions.uri}');
+    debugPrint('← ${response.statusCode} ${response.requestOptions.uri}');
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    debugPrintSynchronously('✗ ${err.response?.statusCode} ${err.requestOptions.uri}: ${err.message}');
+    debugPrint(
+        '✗ ${err.response?.statusCode} ${err.requestOptions.uri}: ${err.message}');
     handler.next(err);
   }
 }
@@ -200,14 +200,14 @@ class ApiException implements Exception {
 
   factory ApiException.fromDioError(DioException error) {
     final statusCode = error.response?.statusCode;
-    
+
     if (error.type == DioExceptionType.connectionError) {
       return const ApiException(
         code: 'NETWORK_ERROR',
         message: 'No internet connection. Please check your network.',
       );
     }
-    
+
     if (error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout) {
       return const ApiException(
@@ -220,10 +220,10 @@ class ApiException implements Exception {
     if (data is Map<String, dynamic> && data['errors'] is List) {
       final firstError = (data['errors'] as List).first;
       return ApiException(
-        code: firstError['code'] ?? 'UNKNOWN',
-        message: firstError['message'] ?? 'An error occurred',
+        code: firstError['code'] as String? ?? 'UNKNOWN',
+        message: firstError['message'] as String? ?? 'An error occurred',
         statusCode: statusCode,
-        field: firstError['field'],
+        field: firstError['field'] as String?,
       );
     }
 
@@ -250,9 +250,4 @@ class ApiException implements Exception {
 
   @override
   String toString() => 'ApiException($code): $message';
-}
-
-void debugPrintSynchronously(String message) {
-  // ignore: avoid_print
-  print(message);
 }

@@ -1,3 +1,6 @@
+// FuelIQ — App Entry Point
+// Fixed session restoration via Clerk ChangeNotifier bridge.
+
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,7 +30,7 @@ void main() async {
 
   await Hive.initFlutter();
   await Firebase.initializeApp();
-  await dotenv.load(fileName: ".env");
+  await dotenv.load(fileName: '.env');
 
   runApp(
     ProviderScope(
@@ -49,28 +52,29 @@ class FuelIQApp extends ConsumerStatefulWidget {
 }
 
 class _FuelIQAppState extends ConsumerState<FuelIQApp> {
-  bool _synced = false;
+  /// Guards against re-binding on every dependency change.
+  bool _clerkBound = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Bind Clerk's ChangeNotifier to our Riverpod notifier the first time
+    // the widget tree is ready. Using addPostFrameCallback avoids mutating
+    // provider state during the build phase.
+    if (!_clerkBound) {
+      _clerkBound = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        // listen: false — we're not registering a rebuild dependency here;
+        // our ChangeNotifier listener in AuthNotifier handles all updates.
+        final clerkState = ClerkAuth.of(context, listen: false);
+        ref.read(authNotifierProvider.notifier).bindClerk(clerkState);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final clerkState = ClerkAuth.of(context);
-
-    if (!_synced) {
-      _synced = true;
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ref
-              .read(authStateProvider.notifier)
-              .syncWithClerk(clerkState.user);
-
-          debugPrint(
-            "CLERK SYNCED -> ${clerkState.user?.id}",
-          );
-        }
-      });
-    }
-
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(

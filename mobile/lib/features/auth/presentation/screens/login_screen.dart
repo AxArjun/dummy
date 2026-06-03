@@ -1,5 +1,6 @@
-// FuelIQ — Login Screen
-// Luxury automotive authentication UI with Clerk integration
+// FuelIQ — Login Screen (Production)
+// Fixed: Google OAuth calls ssoSignIn, error handling uses structured Failures,
+// sign-in uses authNotifierProvider with no BuildContext dependency.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -8,7 +9,6 @@ import 'package:go_router/go_router.dart';
 
 import '../providers/auth_provider.dart';
 import '../../../../core/router/app_router.dart';
-import 'package:clerk_auth/clerk_auth.dart' as clerk;
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -25,11 +25,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _rememberMe = false;
 
   static const Color _bg = Color(0xFF0B0B0B);
-  static const Color _surface = Color(0xFF121212);
   static const Color _card = Color(0xFF1A1A1A);
   static const Color _border = Color(0xFF262626);
   static const Color _gold = Color(0xFFD4AF37);
-  static const Color _silver = Color(0xFFC0C0C0);
   static const Color _textPrimary = Color(0xFFF5F5F5);
   static const Color _textSub = Color(0xFF9E9E9E);
 
@@ -42,8 +40,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _handleSignIn() {
     if (_formKey.currentState?.validate() ?? false) {
-      ref.read(authStateProvider.notifier).signInWithEmailPassword(
-            context,
+      ref.read(authNotifierProvider.notifier).signInWithEmailPassword(
             _emailController.text.trim(),
             _passwordController.text,
           );
@@ -51,75 +48,60 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _handleGoogleSignIn() {
-    // Not supported in mock auth yet
-    // ref.read(authStateNotifierProvider.notifier).signInWithGoogle();
+    ref.read(authNotifierProvider.notifier).signInWithGoogle(context);
   }
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authStateProvider);
+    final authStatus = ref.watch(authNotifierProvider);
+    final isLoading = authStatus is AuthLoading;
 
-    ref.listen(authStateProvider, (previous, next) {
-      if (next.isAuthenticated && mounted) {
-        context.go(AppRoutes.home);
+    // Listen for errors and navigation
+    ref.listen<AuthStatus>(authNotifierProvider, (previous, next) {
+      if (next is AuthError && mounted) {
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Text(
+                next.failure.userMessage,
+                style: const TextStyle(fontFamily: 'Inter', fontSize: 14),
+              ),
+              backgroundColor: const Color(0xFFF44336),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              action: SnackBarAction(
+                label: 'Dismiss',
+                textColor: Colors.white,
+                onPressed: () {
+                  ref.read(authNotifierProvider.notifier).clearError();
+                },
+              ),
+            ),
+          );
       }
-      if (next.hasError && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(next.error.toString()),
-            backgroundColor: const Color(0xFFF44336),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      }
+      // Navigation is handled by GoRouter redirect — no manual context.go needed.
     });
 
     return Scaffold(
       backgroundColor: _bg,
       body: Stack(
         children: [
-          // ── Background gradient ─────────────────────────────────────────
+          // Background gradient
           Positioned.fill(
             child: Container(
               decoration: const BoxDecoration(
                 gradient: RadialGradient(
                   center: Alignment.topCenter,
                   radius: 1.2,
-                  colors: [
-                    Color(0x1AD4AF37),
-                    Color(0x00000000),
-                  ],
+                  colors: [Color(0x1AD4AF37), Color(0x00000000)],
                 ),
               ),
             ),
           ),
 
-          // ── DEVELOPMENT badge ───────────────────────────────────────────
-          Positioned(
-            top: 56,
-            right: 20,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1A),
-                border: Border.all(color: _gold.withOpacity(0.5), width: 1),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'DEVELOPMENT',
-                style: TextStyle(
-                  fontFamily: 'Inter',
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: _gold,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ).animate().fadeIn(delay: 300.ms),
-          ),
-
-          // ── Main content ────────────────────────────────────────────────
           SafeArea(
             child: SingleChildScrollView(
               physics: const ClampingScrollPhysics(),
@@ -129,30 +111,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const SizedBox(height: 60),
-
-                    // Logo + brand
                     _buildBrandHeader(),
-
                     const SizedBox(height: 56),
-
-                    // Form card
-                    _buildFormCard(authState),
-
+                    _buildFormCard(isLoading),
                     const SizedBox(height: 32),
-
-                    // Divider
                     _buildDivider(),
-
                     const SizedBox(height: 24),
-
-                    // Google button
-                    _buildGoogleButton(authState),
-
+                    _buildGoogleButton(isLoading),
                     const SizedBox(height: 32),
-
-                    // Sign up link
                     _buildSignUpLink(),
-
                     const SizedBox(height: 40),
                   ],
                 ),
@@ -205,9 +172,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ],
         ).animate().fadeIn(duration: 500.ms).slideX(begin: -0.2, end: 0),
-
         const SizedBox(height: 20),
-
         const Text(
           'Understand Every Drop.\nOptimize Every Journey.',
           style: TextStyle(
@@ -222,35 +187,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             .animate()
             .fadeIn(delay: 200.ms, duration: 600.ms)
             .slideY(begin: 0.2, end: 0),
-
         const SizedBox(height: 8),
-
         const Text(
           'Sign in to your account',
-          style: TextStyle(
-            fontFamily: 'Inter',
-            fontSize: 14,
-            color: _textSub,
-          ),
+          style: TextStyle(fontFamily: 'Inter', fontSize: 14, color: _textSub),
         ).animate().fadeIn(delay: 350.ms, duration: 500.ms),
       ],
     );
   }
 
-  Widget _buildFormCard(AuthState authState) {
+  Widget _buildFormCard(bool isLoading) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _border, width: 1),
+        border: Border.all(color: _border),
       ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Email
             _buildLabel('Email Address'),
             const SizedBox(height: 8),
             _buildTextField(
@@ -269,10 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 return null;
               },
             ),
-
             const SizedBox(height: 20),
-
-            // Password
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -314,19 +269,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password is required';
-                }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
-                }
+                if (value == null || value.isEmpty) return 'Password is required';
+                if (value.length < 6) return 'At least 6 characters required';
                 return null;
               },
             ),
-
             const SizedBox(height: 16),
-
-            // Remember me
             Row(
               children: [
                 SizedBox(
@@ -338,7 +286,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     activeColor: _gold,
                     side: const BorderSide(color: _border, width: 1.5),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4)),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -352,11 +301,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ],
             ),
-
             const SizedBox(height: 28),
-
-            // Sign in button
-            _buildSignInButton(authState),
+            _buildSignInButton(isLoading),
           ],
         ),
       ),
@@ -435,12 +381,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildSignInButton(AuthState authState) {
+  Widget _buildSignInButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: ElevatedButton(
-        onPressed: authState.isLoading ? null : _handleSignIn,
+        onPressed: isLoading ? null : _handleSignIn,
         style: ElevatedButton.styleFrom(
           backgroundColor: _gold,
           foregroundColor: const Color(0xFF0B0B0B),
@@ -450,7 +396,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           disabledBackgroundColor: _gold.withOpacity(0.5),
         ),
-        child: authState.isLoading
+        child: isLoading
             ? const SizedBox(
                 width: 22,
                 height: 22,
@@ -474,9 +420,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildDivider() {
     return Row(
-      children: [
-        const Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
-        const Padding(
+      children: const [
+        Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
+        Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
           child: Text(
             'OR',
@@ -489,17 +435,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ),
-        const Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
+        Expanded(child: Divider(color: Color(0xFF262626), thickness: 1)),
       ],
     ).animate().fadeIn(delay: 600.ms);
   }
 
-  Widget _buildGoogleButton(AuthState authState) {
+  Widget _buildGoogleButton(bool isLoading) {
     return SizedBox(
       width: double.infinity,
       height: 52,
       child: OutlinedButton(
-        onPressed: authState.isLoading ? null : _handleGoogleSignIn,
+        onPressed: isLoading ? null : _handleGoogleSignIn,
         style: OutlinedButton.styleFrom(
           foregroundColor: _textPrimary,
           side: const BorderSide(color: Color(0xFF262626), width: 1),
@@ -585,13 +531,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
+      builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(
             left: 24,
             right: 24,
             top: 24,
-            bottom: MediaQuery.of(context).viewInsets.bottom + 40,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 40,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -637,8 +583,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   hintStyle: const TextStyle(color: _textSub),
                   fillColor: const Color(0xFF0F0F0F),
                   filled: true,
-                  prefixIcon:
-                      const Icon(Icons.mail_outline_rounded, color: _textSub, size: 18),
+                  prefixIcon: const Icon(
+                    Icons.mail_outline_rounded,
+                    color: _textSub,
+                    size: 18,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: const BorderSide(color: _border),
@@ -659,14 +608,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 height: 52,
                 child: ElevatedButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(ctx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: const Text('Reset link sent to your email'),
                         backgroundColor: const Color(0xFF4CAF50),
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     );
                   },
@@ -675,7 +625,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     foregroundColor: const Color(0xFF0B0B0B),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child: const Text(
                     'Send Reset Link',

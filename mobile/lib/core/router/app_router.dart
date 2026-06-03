@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
+import '../../features/auth/presentation/screens/verify_screen.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/garage/presentation/screens/garage_screen.dart';
 import '../../features/garage/presentation/screens/vehicle_detail_screen.dart';
@@ -20,64 +22,35 @@ import '../../shared/screens/not_found_screen.dart';
 
 part 'app_router.g.dart';
 
+// ─── Routes ────────────────────────────────────────────────────────────────────
+
 class AppRoutes {
-  static const splash = '/';
-  static const login = '/login';
-  static const signup = '/signup';
-  static const home = '/home';
-  static const garage = '/garage';
-  static const addVehicle = '/garage/add';
-  static const vehicleDetail = '/garage/:vehicleId';
-  static const addFuel = '/garage/:vehicleId/add-fuel';
-  static const fuelHistory = '/garage/:vehicleId/fuel-history';
-  static const analytics = '/garage/:vehicleId/analytics';
+  static const splash        = '/';
+  static const login         = '/login';
+  static const signup        = '/signup';
+  static const verify        = '/verify';
+  static const home          = '/home';
+  static const garage        = '/garage';
+  static const addVehicle    = '/garage/add';
   static const notifications = '/notifications';
-  static const profile = '/profile';
-  static const settings = '/settings';
+  static const profile       = '/profile';
+  static const settings      = '/settings';
 }
+
+// ─── Provider ──────────────────────────────────────────────────────────────────
 
 @riverpod
 GoRouter appRouter(AppRouterRef ref) {
-  final authState = ref.watch(authStateProvider);
-  final isSplashFinished = ref.watch(splashTimerProvider);
+  final notifier = _RouterNotifier(ref);
+  ref.onDispose(notifier.dispose);
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
+    refreshListenable: notifier,
     debugLogDiagnostics: false,
-    redirect: (context, state) {
-      final isLoading = authState.isLoading;
-      final isAuthenticated = authState.isAuthenticated;
-      final matched = state.matchedLocation;
-
-      // Handle Splash Screen Logic First
-      if (matched == AppRoutes.splash) {
-        if (!isSplashFinished || isLoading) {
-          // Stay on splash until timer finishes AND auth resolves
-          return null;
-        }
-        // Splash timer is done & auth is loaded, redirect appropriately
-        return isAuthenticated ? AppRoutes.home : AppRoutes.login;
-      }
-
-      // If auth is still loading for some reason on other routes, stay where we are
-      if (isLoading) return null;
-
-      final isAuthRoute = matched == AppRoutes.login || matched == AppRoutes.signup;
-
-      // Unauthenticated users must go to login
-      if (!isAuthenticated && !isAuthRoute) {
-        return AppRoutes.login;
-      }
-
-      // Authenticated users shouldn't see auth routes
-      if (isAuthenticated && isAuthRoute) {
-        return AppRoutes.home;
-      }
-
-      // No redirect needed
-      return null;
-    },
+    redirect: notifier.redirect,
     routes: [
+      // ── Public / Auth ───────────────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.splash,
         name: 'splash',
@@ -86,7 +59,7 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: AppRoutes.login,
         name: 'login',
-        pageBuilder: (context, state) => _slideFromBottom(
+        pageBuilder: (context, state) => _slideUp(
           key: state.pageKey,
           child: const LoginScreen(),
         ),
@@ -94,11 +67,21 @@ GoRouter appRouter(AppRouterRef ref) {
       GoRoute(
         path: AppRoutes.signup,
         name: 'signup',
-        pageBuilder: (context, state) => _slideFromBottom(
+        pageBuilder: (context, state) => _slideUp(
           key: state.pageKey,
           child: const SignupScreen(),
         ),
       ),
+      GoRoute(
+        path: AppRoutes.verify,
+        name: 'verify',
+        pageBuilder: (context, state) => _slideUp(
+          key: state.pageKey,
+          child: const VerifyScreen(),
+        ),
+      ),
+
+      // ── Authenticated Shell ─────────────────────────────────────────────────
       ShellRoute(
         builder: (context, state, child) => HomeScreen(child: child),
         routes: [
@@ -115,7 +98,7 @@ GoRouter appRouter(AppRouterRef ref) {
               GoRoute(
                 path: 'add',
                 name: 'add-vehicle',
-                pageBuilder: (context, state) => _slideFromBottom(
+                pageBuilder: (context, state) => _slideUp(
                   key: state.pageKey,
                   child: const AddVehicleScreen(),
                 ),
@@ -130,7 +113,7 @@ GoRouter appRouter(AppRouterRef ref) {
                   GoRoute(
                     path: 'add-fuel',
                     name: 'add-fuel',
-                    pageBuilder: (context, state) => _slideFromBottom(
+                    pageBuilder: (context, state) => _slideUp(
                       key: state.pageKey,
                       child: AddFuelScreen(
                         vehicleId: state.pathParameters['vehicleId']!,
@@ -177,20 +160,73 @@ GoRouter appRouter(AppRouterRef ref) {
   );
 }
 
-CustomTransitionPage<T> _slideFromBottom<T>({
+// ─── Router Notifier ───────────────────────────────────────────────────────────
+
+class _RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
+
+  _RouterNotifier(this._ref) {
+    _ref.listen<AuthStatus>(authNotifierProvider, (_, __) => notifyListeners());
+    _ref.listen<bool>(splashTimerProvider, (_, __) => notifyListeners());
+  }
+
+  String? redirect(BuildContext context, GoRouterState state) {
+    final auth = _ref.read(authNotifierProvider);
+    final splashDone = _ref.read(splashTimerProvider);
+    final path = state.matchedLocation;
+
+    // Still initialising — keep on splash until Clerk resolves
+    if (auth is AuthInitial || auth is AuthLoading) {
+      return path == AppRoutes.splash ? null : AppRoutes.splash;
+    }
+
+    // Authenticated — kick out of all auth screens
+    if (auth is AuthAuthenticated) {
+      if (path == AppRoutes.splash) {
+        return splashDone ? AppRoutes.home : null;
+      }
+      if (path == AppRoutes.login ||
+          path == AppRoutes.signup ||
+          path == AppRoutes.verify) {
+        return AppRoutes.home;
+      }
+      return null;
+    }
+
+    // Email OTP pending — must verify first
+    if (auth is AuthVerificationPending) {
+      return path == AppRoutes.verify ? null : AppRoutes.verify;
+    }
+
+    // Unauthenticated or Error — allow auth screens, block everything else
+    if (path == AppRoutes.splash) {
+      return splashDone ? AppRoutes.login : null;
+    }
+    if (path == AppRoutes.login || path == AppRoutes.signup) {
+      return null;
+    }
+    return AppRoutes.login;
+  }
+}
+
+// ─── Page Transition ───────────────────────────────────────────────────────────
+
+CustomTransitionPage<T> _slideUp<T>({
   required LocalKey key,
   required Widget child,
 }) {
   return CustomTransitionPage<T>(
     key: key,
     child: child,
-    transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(0.0, 1.0);
-      const end = Offset.zero;
-      const curve = Curves.easeOutCubic;
-      final tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
-      return SlideTransition(position: animation.drive(tween), child: child);
-    },
     transitionDuration: const Duration(milliseconds: 350),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return SlideTransition(
+        position: Tween(
+          begin: const Offset(0.0, 1.0),
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeOutCubic)).animate(animation),
+        child: child,
+      );
+    },
   );
 }
