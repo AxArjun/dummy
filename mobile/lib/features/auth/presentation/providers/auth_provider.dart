@@ -33,16 +33,17 @@ class AuthNotifier extends Notifier<AuthState> {
     state = AsyncData(authState.user);
   }
 
-  Future<void> signUpWithEmailPassword(
-    BuildContext context,
-    String email,
-    String password,
-    String confirmPassword,
-    String name,
-  ) async {
+Future<clerk.SignUp?> signUpWithEmailPassword(
+  BuildContext context,
+  String email,
+  String password,
+  String confirmPassword,
+  String name,
+) async {
+  try {
     final authState = ClerkAuth.of(context, listen: false);
 
-    await authState.attemptSignUp(
+    final result = await authState.attemptSignUp(
       strategy: clerk.Strategy.password,
       emailAddress: email,
       password: password,
@@ -50,8 +51,24 @@ class AuthNotifier extends Notifier<AuthState> {
       firstName: name,
     );
 
+    debugPrint("========== CLERK SIGNUP ==========");
+    debugPrint("SIGNUP RESULT = $result");
+    debugPrint("SIGNUP OBJECT = ${authState.signUp}");
+    debugPrint("CURRENT USER = ${authState.user}");
+
     state = AsyncData(authState.user);
+
+    return authState.signUp;
+  } catch (e, s) {
+    debugPrint("========== SIGNUP ERROR ==========");
+    debugPrint(e.toString());
+    debugPrint(s.toString());
+
+    state = AsyncError(e, s);
+
+    rethrow;
   }
+}
 
   Future<void> signOut(BuildContext context) async {
     final authState = ClerkAuth.of(context, listen: false);

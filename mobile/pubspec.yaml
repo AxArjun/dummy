@@ -42,8 +42,8 @@
     shared_preferences: ^2.2.3
 
     # Notifications
-    firebase_core: ^2.31.0
-    firebase_messaging: ^14.9.1
+    firebase_core: ^4.10.0
+    firebase_messaging: ^16.3.0
     flutter_local_notifications: ^17.1.2
 
     # OCR
@@ -97,7 +97,4 @@
 
     assets:
       - .env
-
-  dependency_overrides:
-    clerk_auth: 0.0.14-beta
 
