@@ -1,62 +1,82 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/foundation.dart';
 
 import '../../../../shared/models/models.dart';
+import '../../../../core/network/dio_client.dart';
 
 class VehicleRepository {
+  final Dio _dio;
+
+  VehicleRepository(this._dio);
+
   Future<List<Vehicle>> getVehicles() async {
-    await Future.delayed(const Duration(milliseconds: 800));
-    return [
-      Vehicle(
-        id: 'v001',
-        make: 'BMW',
-        model: '3 Series',
-        year: 2023,
-        fuelType: FuelType.petrol,
-        vehicleType: VehicleType.car,
-        licensePlate: 'MH 01 AB 1234',
-        color: 'Alpine White',
-        tankCapacityLiters: 59,
-        initialOdometer: 0,
-        currentOdometer: 24850,
-        isPrimary: true,
-        isArchived: false,
-        createdAt: DateTime(2023, 1, 15),
-        totalDistanceKm: 24850,
-        totalFuelCost: 112400,
-        avgEfficiencyLper100km: 9.2,
-      ),
-      Vehicle(
-        id: 'v002',
-        make: 'Royal Enfield',
-        model: 'Classic 350',
-        year: 2022,
-        fuelType: FuelType.petrol,
-        vehicleType: VehicleType.motorcycle,
-        licensePlate: 'MH 02 XY 5678',
-        color: 'Stealth Black',
-        tankCapacityLiters: 13.5,
-        initialOdometer: 0,
-        currentOdometer: 8420,
-        isPrimary: false,
-        isArchived: false,
-        createdAt: DateTime(2022, 6, 10),
-        totalDistanceKm: 8420,
-        totalFuelCost: 18600,
-        avgEfficiencyLper100km: 4.1,
-      ),
-    ];
+    try {
+      final response = await _dio.get('/vehicles');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = response.data['data']['items'] ?? response.data['data'];
+        return data.map((json) => Vehicle.fromJson(json as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } on DioException catch (e) {
+      debugPrint('[VehicleRepository] getVehicles error: ${e.message}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to fetch vehicles');
+    }
   }
 
   Future<Vehicle> addVehicle(Vehicle vehicle) async {
-    await Future.delayed(const Duration(milliseconds: 600));
-    return vehicle;
+    try {
+      final response = await _dio.post(
+        '/vehicles',
+        data: vehicle.toJson()
+          ..remove('id')
+          ..remove('created_at')
+          ..remove('total_distance_km')
+          ..remove('total_fuel_cost')
+          ..remove('avg_efficiency_lper100km')
+          ..remove('current_odometer')
+          ..remove('photo_url')
+          ..remove('is_archived'),
+      );
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Vehicle.fromJson(response.data['data'] as Map<String, dynamic>);
+      }
+      throw Exception('Failed to add vehicle');
+    } on DioException catch (e) {
+      debugPrint('[VehicleRepository] addVehicle error: ${e.message}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to add vehicle');
+    }
+  }
+
+  Future<Vehicle> updateVehicle(String id, Map<String, dynamic> data) async {
+    try {
+      final response = await _dio.patch(
+        '/vehicles/$id',
+        data: data,
+      );
+      if (response.statusCode == 200) {
+        return Vehicle.fromJson(response.data['data'] as Map<String, dynamic>);
+      }
+      throw Exception('Failed to update vehicle');
+    } on DioException catch (e) {
+      debugPrint('[VehicleRepository] updateVehicle error: ${e.message}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to update vehicle');
+    }
   }
 
   Future<void> deleteVehicle(String id) async {
-    await Future.delayed(const Duration(milliseconds: 600));
+    try {
+      final response = await _dio.delete('/vehicles/$id');
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        throw Exception('Failed to delete vehicle');
+      }
+    } on DioException catch (e) {
+      debugPrint('[VehicleRepository] deleteVehicle error: ${e.message}');
+      throw Exception(e.response?.data['message'] ?? 'Failed to delete vehicle');
+    }
   }
 }
 
 final vehicleRepositoryProvider = Provider<VehicleRepository>((ref) {
-  return VehicleRepository();
+  return VehicleRepository(ref.watch(dioProvider));
 });

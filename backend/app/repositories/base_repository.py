@@ -161,11 +161,21 @@ class BaseRepository(Generic[ModelType]):
     ) -> None:
         """Write to audit_logs table."""
 
+        def _serialize_val(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            if isinstance(obj, uuid.UUID):
+                return str(obj)
+            from decimal import Decimal
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return obj
+
         def _serialize(d: dict | None) -> dict | None:
             if d is None:
                 return None
             return {
-                k: str(v) if isinstance(v, (uuid.UUID, datetime)) else v
+                k: _serialize_val(v)
                 for k, v in d.items()
             }
 

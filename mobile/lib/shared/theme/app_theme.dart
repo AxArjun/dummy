@@ -19,6 +19,11 @@ class AppTheme {
   static const Color _darkSurfaceVariant = Color(0xFF1F2937); // Elevated cards
   static const Color _darkBorder = Color(0xFF374151);        // Subtle borders
 
+  static const Color primaryBlue = _primaryBlue;
+  static const Color primaryBlueDark = _primaryBlueDark;
+  static const Color background = _darkBg;
+  static const Color surface = _darkSurface;
+
   // ─── Dark Theme ────────────────────────────────────────────────────────────
   static ThemeData get dark => ThemeData(
         useMaterial3: true,

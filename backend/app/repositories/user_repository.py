@@ -13,13 +13,19 @@ class UserRepository(BaseRepository[User]):
     def __init__(self, session: AsyncSession):
         super().__init__(User, session)
 
-    async def get_by_clerk_id(self, clerk_id: str) -> User | None:
+    async def get_by_firebase_uid(self, firebase_uid: str) -> User | None:
+        # Note: Using the clerk_id column temporarily to store firebase_uid
         stmt = select(User).where(
-            User.clerk_id == clerk_id,
+            User.clerk_id == firebase_uid,
             User.deleted_at.is_(None),
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    # We also keep this alias to not break any existing code that might call it,
+    # though it should be removed in the future.
+    async def get_by_clerk_id(self, clerk_id: str) -> User | None:
+        return await self.get_by_firebase_uid(clerk_id)
 
     async def get_by_email(self, email: str) -> User | None:
         stmt = select(User).where(

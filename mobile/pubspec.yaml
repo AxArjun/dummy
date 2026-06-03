@@ -31,20 +31,20 @@ dependencies:
   pretty_dio_logger: ^1.3.1
   connectivity_plus: ^6.0.3
 
-  # Auth — versions LOCKED, do not upgrade
+  # Auth
   flutter_secure_storage: ^9.0.0
-  clerk_flutter: 0.0.14-beta
-  clerk_auth: 0.0.14-beta
+  firebase_auth: ^6.5.2
+  google_sign_in: ^6.2.1
   flutter_dotenv: ^6.0.1
 
-  # WebView — required by clerk_flutter ssoSignIn (Google OAuth) and signOut cookie clear
+  # WebView — no longer strictly required for auth but keep for other uses if any
   webview_flutter: ^4.7.0
 
   # Local Storage
   hive_flutter: ^1.1.0
   shared_preferences: ^2.2.3
 
-  # Notifications
+  # Notifications / Firebase Core
   firebase_core: ^4.10.0
   firebase_messaging: ^16.3.0
   flutter_local_notifications: ^17.1.2

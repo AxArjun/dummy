@@ -224,7 +224,7 @@ To democratize vehicle data intelligence by providing every vehicle owner — fr
 ### 6.4 Security
 | ID | Requirement | Standard |
 |---|---|---|
-| NFR-SEC-01 | Authentication | Clerk (OIDC compliant) |
+| NFR-SEC-01 | Authentication | Firebase (OIDC compliant) |
 | NFR-SEC-02 | Data encryption at rest | AES-256 |
 | NFR-SEC-03 | Data encryption in transit | TLS 1.3 |
 | NFR-SEC-04 | API rate limiting | Per-user, per-IP |
@@ -323,7 +323,7 @@ US-042 As a vehicle owner, I want overdue service alerts on my home screen.
 ## 9. MVP Scope (Phase 1 Launch)
 
 ### ✅ MVP Includes
-- Email/Google authentication via Clerk
+- Email/Google authentication via Firebase
 - Profile management (name, photo, unit preferences)
 - Garage — add, view, edit up to 10 vehicles
 - Fuel logging — manual entry with efficiency calculation

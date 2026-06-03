@@ -75,7 +75,7 @@ CREATE TYPE audit_action AS ENUM (
 -- ============================================================
 CREATE TABLE users (
     id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    clerk_id            VARCHAR(255) UNIQUE NOT NULL,      -- Clerk's user ID (e.g., user_2abc...)
+    clerk_id            VARCHAR(255) UNIQUE NOT NULL,      -- Firebase's user ID (e.g., user_2abc...)
     email               VARCHAR(320) UNIQUE NOT NULL,
     display_name        VARCHAR(100),
     avatar_url          TEXT,
@@ -104,7 +104,7 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_is_active ON users(is_active) WHERE is_active = true;
 CREATE INDEX idx_users_deleted_at ON users(deleted_at) WHERE deleted_at IS NULL;
 
-COMMENT ON TABLE users IS 'FuelIQ user accounts. Identity managed by Clerk; this table holds profile + preference data.';
+COMMENT ON TABLE users IS 'FuelIQ user accounts. Identity managed by Firebase; this table holds profile + preference data.';
 COMMENT ON COLUMN users.clerk_id IS 'Clerk user ID, used as foreign key for JWT sub claim mapping.';
 
 -- ============================================================

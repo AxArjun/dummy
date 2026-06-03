@@ -1,6 +1,5 @@
 // FuelIQ — Dio HTTP Client + Interceptors (Production)
-// Fixed: AuthInterceptor now uses Clerk session tokens via Riverpod Ref.
-// TokenStorage.getAccessToken() was always null — removed dependency.
+// Fixed: AuthInterceptor now uses Firebase ID tokens via Riverpod Ref.
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -16,14 +15,17 @@ const _kConnectTimeout = Duration(seconds: 15);
 const _kReceiveTimeout = Duration(seconds: 30);
 
 /// Provider for the main Dio instance.
-/// AuthInterceptor receives a token-getter closure backed by the Clerk session.
+/// AuthInterceptor receives a token-getter closure backed by the Firebase session.
 final dioProvider = Provider<Dio>((ref) {
   return _buildDio(
-    getToken: () => ref.read(authNotifierProvider.notifier).getSessionToken(),
+    getToken: (bool forceRefresh) async {
+      final user = ref.read(currentUserProvider);
+      return await user?.getIdToken(forceRefresh);
+    },
   );
 });
 
-Dio _buildDio({required Future<String?> Function() getToken}) {
+Dio _buildDio({required Future<String?> Function(bool forceRefresh) getToken}) {
   final dio = Dio(
     BaseOptions(
       baseUrl: _kBaseUrl,
@@ -51,10 +53,10 @@ Dio _buildDio({required Future<String?> Function() getToken}) {
 
 // ─── Auth Interceptor ─────────────────────────────────────────────────────────
 
-/// Attaches the Clerk session JWT to every outbound request.
+/// Attaches the Firebase session JWT to every outbound request.
 /// On 401, retrieves a fresh token and retries once.
 class AuthInterceptor extends Interceptor {
-  final Future<String?> Function() _getToken;
+  final Future<String?> Function(bool forceRefresh) _getToken;
   final Dio _dio;
 
   AuthInterceptor(this._getToken, this._dio);
@@ -69,8 +71,8 @@ class AuthInterceptor extends Interceptor {
       return handler.next(options);
     }
 
-    // Fetch the live Clerk session token (cached internally by Clerk until expiry)
-    final token = await _getToken();
+    // Fetch the live Firebase session token (cached internally by Firebase until expiry)
+    final token = await _getToken(false);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
@@ -83,12 +85,13 @@ class AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
-    if (err.response?.statusCode == 401) {
-      // Session may have expired between requests. Try to get a fresh token.
+    if (err.response?.statusCode == 401 && err.requestOptions.extra['_retry'] != true) {
+      // Session may have expired between requests. Force refresh token from Firebase.
       try {
-        final newToken = await _getToken();
+        final newToken = await _getToken(true);
         if (newToken != null) {
           final options = err.requestOptions;
+          options.extra['_retry'] = true;
           options.headers['Authorization'] = 'Bearer $newToken';
           final response = await _dio.fetch(options);
           return handler.resolve(response);

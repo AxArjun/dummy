@@ -47,7 +47,7 @@ rectangle "Application Layer" #1C2128 {
 }
 
 rectangle "Auth Layer" #1C2128 {
-  component "Clerk\nAuth Service" as Clerk
+  component "Firebase\nAuth Service" as Firebase
 }
 
 rectangle "Data Layer" #1C2128 {
@@ -74,7 +74,7 @@ User --> CDN : HTTPS
 CDN --> LB : Forward
 LB --> API : Route
 LB --> API2 : Route (load balanced)
-API --> Clerk : Verify JWT
+API --> Firebase : Verify JWT
 API --> PGPrimary : Writes
 API --> PGReplica : Reads
 API --> Redis : Cache / Sessions
@@ -255,7 +255,7 @@ node "VPS / Cloud VM\n(Docker Host)" as Host {
 }
 
 node "External Cloud" as External {
-  artifact "Clerk\nAuth SaaS" as ClerkExt
+  artifact "Firebase\nAuth SaaS" as ClerkExt
   artifact "Firebase\nFCM" as FCMExt
   artifact "Sentry\nError Tracking" as SentryExt
   artifact "Google\nML Kit (SDK)" as MLKitExt
@@ -293,7 +293,7 @@ skinparam sequenceBoxBackgroundColor #1C2128
 skinparam participantBorderColor #388BFD
 skinparam participantBackgroundColor #161B22
 
-title FuelIQ — Authentication Flow (Clerk + FastAPI)
+title FuelIQ — Authentication Flow (Firebase + FastAPI)
 
 participant "Flutter App" as App
 participant "Clerk SDK" as Clerk
@@ -303,10 +303,10 @@ participant "PostgreSQL" as DB
 participant "Redis" as Cache
 
 == Registration Flow ==
-App -> Clerk: signUp(email, password)
-Clerk -> ClerkBE: Create User Account
-ClerkBE --> Clerk: User Created + Session Token
-Clerk --> App: SessionToken + JWT
+App -> Firebase: signUp(email, password)
+Firebase -> ClerkBE: Create User Account
+ClerkBE --> Firebase: User Created + Session Token
+Firebase --> App: SessionToken + JWT
 App -> API: POST /v1/auth/sync-user\nBearer: JWT
 API -> ClerkBE: GET /jwks (verify JWT)
 ClerkBE --> API: Public Key
@@ -317,10 +317,10 @@ API -> Cache: SET user:{id} ttl=3600
 API --> App: 201 { user, profile }
 
 == Login Flow ==
-App -> Clerk: signIn(email, password)
-Clerk -> ClerkBE: Authenticate
-ClerkBE --> Clerk: Session + JWT (short-lived, 60s)
-Clerk --> App: access_token + refresh context
+App -> Firebase: signIn(email, password)
+Firebase -> ClerkBE: Authenticate
+ClerkBE --> Firebase: Session + JWT (short-lived, 60s)
+Firebase --> App: access_token + refresh context
 App -> API: Any protected request\nAuthorization: Bearer {access_token}
 
 == JWT Verification (Every Request) ==
@@ -347,15 +347,15 @@ alt Token Valid
   API --> App: 200 Response
 else Token Invalid/Expired
   API --> App: 401 Unauthorized
-  App -> Clerk: Refresh session
-  Clerk -> ClerkBE: Refresh tokens
+  App -> Firebase: Refresh session
+  Firebase -> ClerkBE: Refresh tokens
   ClerkBE --> App: New access_token
   App -> API: Retry request
 end
 
 == Logout Flow ==
-App -> Clerk: signOut()
-Clerk -> ClerkBE: Invalidate session
+App -> Firebase: signOut()
+Firebase -> ClerkBE: Invalidate session
 App -> API: POST /v1/auth/logout\nBearer: JWT
 API -> Cache: DEL user:{user_id}
 API --> App: 200 OK
@@ -554,7 +554,7 @@ App -> App: Show notification list\nwith unread badges
 **Decision**: Use Clerk as the auth provider
 **Rationale**: Clerk handles all auth complexity (JWKS rotation, OAuth, MFA, session management) with a Flutter-compatible SDK. Eliminates 2-3 weeks of auth implementation risk.
 **Tradeoff**: Vendor dependency, pricing at scale. Migration path: implement own OIDC server using Hydra if Clerk becomes cost-prohibitive.
-**Security**: JWT verification uses Clerk's JWKS endpoint with 24h caching. Token never touches our DB — only the `sub` claim (Clerk user ID) is stored.
+**Security**: JWT verification uses Firebase's JWKS endpoint with 24h caching. Token never touches our DB — only the `sub` claim (Clerk user ID) is stored.
 
 ### ADR-003: Redis for Caching + Queue
 **Decision**: Use Redis for both cache and Celery broker

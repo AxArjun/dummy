@@ -1,7 +1,7 @@
 // FuelIQ — Structured Failure Hierarchy
 // Production error modeling for auth, session, network, and OAuth layers.
 
-import 'package:clerk_auth/clerk_auth.dart' as clerk;
+import 'package:firebase_auth/firebase_auth.dart';
 
 // ─── Base ─────────────────────────────────────────────────────────────────────
 
@@ -18,46 +18,36 @@ sealed class Failure {
 class AuthFailure extends Failure {
   const AuthFailure(super.userMessage);
 
-  factory AuthFailure.fromClerkError(clerk.ClerkError error) {
-    return AuthFailure(_mapClerkError(error));
+  factory AuthFailure.fromFirebaseError(FirebaseAuthException error) {
+    return AuthFailure(_mapFirebaseError(error));
   }
 
-  static String _mapClerkError(clerk.ClerkError error) {
-    final code = error.code.toString().toLowerCase();
-    final msg = error.message.toLowerCase();
+  static String _mapFirebaseError(FirebaseAuthException error) {
+    final code = error.code.toLowerCase();
 
-    if (code.contains('password_match') || msg.contains('match')) {
-      return 'Passwords do not match. Please try again.';
+    if (code == 'user-not-found') {
+      return 'No user found for that email.';
     }
-    if (code.contains('invalid_credentials') ||
-        msg.contains('invalid credentials') ||
-        msg.contains('is incorrect')) {
+    if (code == 'wrong-password' || code == 'invalid-credential') {
       return 'Invalid email or password. Please check your details.';
     }
-    if (code.contains('identifier_exists') ||
-        msg.contains('already exists') ||
-        msg.contains('taken')) {
+    if (code == 'email-already-in-use') {
       return 'An account with this email already exists.';
     }
-    if (code.contains('too_many_requests') || msg.contains('too many')) {
+    if (code == 'too-many-requests') {
       return 'Too many attempts. Please wait a moment and try again.';
     }
-    if (code.contains('password_strength') ||
-        (msg.contains('password') && msg.contains('weak'))) {
-      return 'Password is too weak. Use at least 8 characters.';
+    if (code == 'weak-password') {
+      return 'Password is too weak. Use at least 6 characters.';
     }
-    if (code.contains('incorrect_code') ||
-        (msg.contains('incorrect') && msg.contains('code'))) {
+    if (code == 'invalid-verification-code') {
       return 'Incorrect verification code. Please try again.';
     }
-    if (code.contains('expired') || msg.contains('expired')) {
+    if (code == 'expired-action-code') {
       return 'Verification code expired. Please request a new one.';
     }
-    if (code.contains('not_found') || msg.contains('not found')) {
-      return 'Account not found. Please sign up first.';
-    }
-    if (error.message.isNotEmpty) {
-      return error.message;
+    if (error.message != null && error.message!.isNotEmpty) {
+      return error.message!;
     }
     return 'Authentication failed. Please try again.';
   }

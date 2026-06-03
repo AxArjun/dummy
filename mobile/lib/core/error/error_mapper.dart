@@ -1,7 +1,7 @@
 // FuelIQ — Error Mapper
 // Maps raw SDK/network exceptions to structured Failure types.
 
-import 'package:clerk_auth/clerk_auth.dart' as clerk;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:dio/dio.dart';
 
 import 'failures.dart';
@@ -10,8 +10,8 @@ class ErrorMapper {
   const ErrorMapper._();
 
   static Failure map(Object error) {
-    if (error is clerk.ClerkError) {
-      return AuthFailure.fromClerkError(error);
+    if (error is FirebaseAuthException) {
+      return AuthFailure.fromFirebaseError(error);
     }
     if (error is DioException) {
       return _mapDioError(error);

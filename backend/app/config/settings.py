@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     APP_ENV: Literal["development", "staging", "production"] = "development"
     DEBUG: bool = False
-    SECRET_KEY: str  # Used for internal signing only; JWT signing done by Clerk
+    SECRET_KEY: str  # Used for internal signing
 
     # ─── API ─────────────────────────────────────────────────────────────────
     API_V1_PREFIX: str = "/api/v1"
@@ -51,11 +51,7 @@ class Settings(BaseSettings):
     REDIS_JWKS_TTL: int = 86400  # 24 hours
     REDIS_USER_TTL: int = 3600   # 1 hour
 
-    # ─── Clerk ───────────────────────────────────────────────────────────────
-    CLERK_PUBLISHABLE_KEY: str
-    CLERK_SECRET_KEY: str
-    CLERK_JWKS_URL: str  # e.g., https://your-clerk-domain.clerk.accounts.dev/.well-known/jwks.json
-    CLERK_ISSUER: str    # e.g., https://your-clerk-domain.clerk.accounts.dev
+
 
     # ─── MinIO / S3 ──────────────────────────────────────────────────────────
     S3_ENDPOINT_URL: str  # MinIO endpoint or AWS S3

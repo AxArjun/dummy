@@ -15,10 +15,9 @@ psycopg2-binary==2.9.10
 redis[hiredis]==5.2.1
 fakeredis==2.26.2
 
-# ─── Auth ────────────────────────────────────────────────────
-pyjwt[crypto]==2.10.1
+# ─── Auth (Firebase) ─────────────────────────────────────────
+firebase-admin==6.6.0
 httpx==0.28.1
-python-jose[cryptography]==3.3.0
 
 # ─── Validation ──────────────────────────────────────────────
 pydantic==2.10.3
@@ -26,18 +25,14 @@ pydantic-settings==2.7.0
 email-validator==2.2.0
 
 # ─── Storage ─────────────────────────────────────────────────
-boto3==1.35.85
+boto3==1.35.36
 aioboto3==13.2.0
 
 # ─── Task Queue ──────────────────────────────────────────────
 celery==5.4.0
 celery[redis]==5.4.0
 
-# ─── Notifications ───────────────────────────────────────────
-firebase-admin==6.6.0
-
 # ─── HTTP Client ─────────────────────────────────────────────
-httpx==0.28.1
 aiohttp==3.11.10
 
 # ─── Observability ───────────────────────────────────────────
@@ -59,5 +54,4 @@ python-magic==0.4.27
 pytest==8.3.4
 pytest-asyncio==0.24.0
 pytest-cov==6.0.0
-httpx==0.28.1
 factory-boy==3.3.1

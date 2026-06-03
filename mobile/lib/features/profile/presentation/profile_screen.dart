@@ -25,7 +25,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final clerkUser = ref.watch(currentUserProvider);
+    final firebaseUser = ref.watch(currentUserProvider);
     final garageState = ref.watch(garageScreenStateProvider);
     final vehicleIds = garageState.vehiclesState.valueOrNull?.map((v) => v.id).toList() ?? [];
 
@@ -34,14 +34,9 @@ class ProfileScreen extends ConsumerWidget {
       return sum + logs.length;
     });
 
-    final firstName = clerkUser?.firstName ?? '';
-    final lastName  = clerkUser?.lastName  ?? '';
-    final displayName = [firstName, lastName].where((s) => s.isNotEmpty).join(' ');
+    final displayName = firebaseUser?.displayName ?? '';
     final resolvedName = displayName.isNotEmpty ? displayName : 'User';
-    final emailList = clerkUser?.emailAddresses;
-    final email = (emailList != null && emailList.isNotEmpty)
-        ? emailList.first.emailAddress
-        : 'user@example.com';
+    final email = firebaseUser?.email ?? 'user@example.com';
     final initials = resolvedName
         .split(' ').map((p) => p.isNotEmpty ? p[0] : '').take(2).join().toUpperCase();
 
@@ -262,7 +257,7 @@ class ProfileScreen extends ConsumerWidget {
           _ProfileListTile(
             icon: Icons.lock_outline_rounded,
             title: 'Change Password',
-            subtitle: 'Update your password via Clerk',
+            subtitle: 'Update your password',
             onTap: () {},
           ),
         ],

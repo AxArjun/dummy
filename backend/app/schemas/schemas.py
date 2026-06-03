@@ -7,7 +7,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Generic, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator, AliasChoices
 
 from app.models.models import (
     DistanceUnit,
@@ -89,8 +89,8 @@ class UserPreferences(BaseSchema):
 
 
 class UserSyncRequest(BaseSchema):
-    """Called by Flutter after Clerk authentication to sync user profile."""
-    clerk_id: str
+    """Called by Flutter after Firebase authentication to sync user profile."""
+    firebase_uid: str
     email: EmailStr
     display_name: str | None = None
     avatar_url: str | None = None
@@ -342,7 +342,7 @@ class NotificationResponse(BaseSchema):
     notification_type: NotificationType
     title: str
     body: str
-    metadata: dict[str, Any] | None
+    metadata: dict[str, Any] | None = Field(default=None, validation_alias=AliasChoices('metadata', 'meta_data'))
     action_url: str | None
     is_read: bool
     read_at: datetime | None

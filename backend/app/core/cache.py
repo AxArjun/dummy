@@ -77,17 +77,7 @@ class CacheService:
     def _key(self, namespace: str, identifier: str) -> str:
         return f"{self.PREFIX}:{namespace}:{identifier}"
 
-    # ─── JWKS ─────────────────────────────────────────────────────────────────
 
-    async def get_jwks(self) -> str | None:
-        return await self._redis.get(self._key("jwks", "clerk"))
-
-    async def set_jwks(self, jwks_data: str) -> None:
-        await self._redis.setex(
-            self._key("jwks", "clerk"),
-            settings.REDIS_JWKS_TTL,
-            jwks_data,
-        )
 
     # ─── User ─────────────────────────────────────────────────────────────────
 

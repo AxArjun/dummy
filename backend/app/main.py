@@ -8,6 +8,8 @@ from typing import AsyncIterator
 
 import sentry_sdk
 import structlog
+import firebase_admin
+from firebase_admin import credentials
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -80,6 +82,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         version=settings.APP_VERSION,
         environment=settings.APP_ENV,
     )
+    
+    # Initialize Firebase Admin SDK
+    try:
+        firebase_admin.initialize_app()
+        logger.info("firebase_admin_initialized")
+    except ValueError:
+        # Already initialized
+        pass
+    except Exception as e:
+        logger.error("firebase_admin_initialization_failed", error=str(e))
 
     # Validate DB connection
     from app.core.database import check_db_health

@@ -26,7 +26,7 @@ FuelIQ is a Vehicle Intelligence Platform that gives vehicle owners complete vis
 | Layer | Technology |
 |---|---|
 | Mobile | Flutter + Dart + Material 3 + Riverpod + Go Router + Freezed |
-| Auth | Clerk |
+| Auth | Firebase |
 | Backend | FastAPI + Python 3.13 |
 | Database | PostgreSQL 16 (partitioned tables, materialized views) |
 | Cache | Redis 7 |
@@ -82,7 +82,7 @@ fueliq/
 ### 1. Setup Environment
 ```bash
 cp .env.example .env
-# Edit .env with your Clerk, Firebase, and database credentials
+# Edit .env with your Firebase, Firebase, and database credentials
 ```
 
 ### 2. Start Backend

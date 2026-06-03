@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/auth_provider.dart';
 
+final splashTimerProvider = StateProvider<bool>((ref) => false);
+
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 

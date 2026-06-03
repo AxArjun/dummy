@@ -12,7 +12,20 @@
           "package_name": "com.fueliq.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "976961985273-j5tive55cn7k40agqrvpemb7hc2dkm9j.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.fueliq.app",
+            "certificate_hash": "347e9394d327d0eb8ba98497141d5be160c73c86"
+          }
+        },
+        {
+          "client_id": "976961985273-boc60lvni53vu8ee9272785ngmafq59i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCaOqblFA5yX0AEKZ8XWlEwQbnpemYrqAc"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "976961985273-boc60lvni53vu8ee9272785ngmafq59i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

@@ -183,7 +183,7 @@ class NotificationService:
             "title": payload["title"],
             "body": payload["body"],
             "action_url": payload["action_url"],
-            "metadata": {
+            "meta_data": {
                 "reminder_id": str(reminder.id),
                 "vehicle_id": str(reminder.vehicle_id),
                 "service_type": reminder.service_type.value if reminder.service_type else None,

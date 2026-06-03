@@ -155,12 +155,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     avatar_url: Mapped[str | None] = mapped_column(sa.Text)
 
     distance_unit: Mapped[DistanceUnit] = mapped_column(
-        PgEnum(DistanceUnit, name="distance_unit", create_type=False),
+        PgEnum(DistanceUnit, name="distance_unit"),
         nullable=False,
         default=DistanceUnit.KM,
     )
     volume_unit: Mapped[VolumeUnit] = mapped_column(
-        PgEnum(VolumeUnit, name="volume_unit", create_type=False),
+        PgEnum(VolumeUnit, name="volume_unit"),
         nullable=False,
         default=VolumeUnit.LITERS,
     )
@@ -217,12 +217,12 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
     color: Mapped[str | None] = mapped_column(sa.String(50))
 
     vehicle_type: Mapped[VehicleType] = mapped_column(
-        PgEnum(VehicleType, name="vehicle_type", create_type=False),
+        PgEnum(VehicleType, name="vehicle_type"),
         nullable=False,
         default=VehicleType.CAR,
     )
     fuel_type: Mapped[FuelType] = mapped_column(
-        PgEnum(FuelType, name="fuel_type", create_type=False),
+        PgEnum(FuelType, name="fuel_type"),
         nullable=False,
         default=FuelType.PETROL,
     )
@@ -267,12 +267,13 @@ class FuelLog(Base, TimestampMixin, SoftDeleteMixin):
         sa.Index("idx_fuel_logs_full_tank", "vehicle_id", "is_full_tank", "filled_at"),
         sa.CheckConstraint("volume_liters > 0", name="chk_fuel_volume_positive"),
         sa.CheckConstraint("price_per_liter > 0", name="chk_fuel_price_positive"),
+        sa.PrimaryKeyConstraint("id", "filled_at"),
         {
             "postgresql_partition_by": "RANGE (filled_at)",
         },
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), default=uuid.uuid4)
     vehicle_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), sa.ForeignKey("vehicles.id", ondelete="CASCADE"), nullable=False
     )
@@ -281,6 +282,7 @@ class FuelLog(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     odometer_reading: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2), nullable=False)
+    filled_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True))
     volume_liters: Mapped[Decimal] = mapped_column(sa.Numeric(8, 3), nullable=False)
     price_per_liter: Mapped[Decimal] = mapped_column(sa.Numeric(8, 4), nullable=False)
 
@@ -331,7 +333,7 @@ class Expense(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     category: Mapped[ExpenseCategory] = mapped_column(
-        PgEnum(ExpenseCategory, name="expense_category", create_type=False), nullable=False
+        PgEnum(ExpenseCategory, name="expense_category"), nullable=False
     )
     amount: Mapped[Decimal] = mapped_column(sa.Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(sa.CHAR(3), nullable=False, default="INR")
@@ -361,7 +363,7 @@ class ServiceRecord(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     service_type: Mapped[ServiceType] = mapped_column(
-        PgEnum(ServiceType, name="service_type", create_type=False), nullable=False
+        PgEnum(ServiceType, name="service_type"), nullable=False
     )
     service_date: Mapped[date] = mapped_column(sa.Date, nullable=False)
     odometer_reading: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
@@ -386,7 +388,7 @@ class Reminder(Base, TimestampMixin, SoftDeleteMixin):
             "idx_reminders_due",
             "remind_at",
             postgresql_where=sa.text(
-                "status = 'pending' AND notification_sent = false AND deleted_at IS NULL"
+                "status = 'PENDING'::reminder_status AND notification_sent = false AND deleted_at IS NULL"
             ),
         ),
         sa.Index("idx_reminders_user_id", "user_id"),
@@ -404,10 +406,10 @@ class Reminder(Base, TimestampMixin, SoftDeleteMixin):
     title: Mapped[str] = mapped_column(sa.String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(sa.Text)
     service_type: Mapped[ServiceType | None] = mapped_column(
-        PgEnum(ServiceType, name="service_type", create_type=False)
+        PgEnum(ServiceType, name="service_type")
     )
     reminder_type: Mapped[ReminderType] = mapped_column(
-        PgEnum(ReminderType, name="reminder_type", create_type=False),
+        PgEnum(ReminderType, name="reminder_type"),
         nullable=False,
         default=ReminderType.DATE_BASED,
     )
@@ -415,7 +417,7 @@ class Reminder(Base, TimestampMixin, SoftDeleteMixin):
     remind_at_odometer: Mapped[Decimal | None] = mapped_column(sa.Numeric(10, 2))
 
     status: Mapped[ReminderStatus] = mapped_column(
-        PgEnum(ReminderStatus, name="reminder_status", create_type=False),
+        PgEnum(ReminderStatus, name="reminder_status"),
         nullable=False,
         default=ReminderStatus.PENDING,
     )
@@ -451,11 +453,11 @@ class Notification(Base):
         UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     notification_type: Mapped[NotificationType] = mapped_column(
-        PgEnum(NotificationType, name="notification_type", create_type=False), nullable=False
+        PgEnum(NotificationType, name="notification_type"), nullable=False
     )
     title: Mapped[str] = mapped_column(sa.String(200), nullable=False)
     body: Mapped[str] = mapped_column(sa.Text, nullable=False)
-    metadata: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    meta_data: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
     action_url: Mapped[str | None] = mapped_column(sa.Text)
     is_read: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=False)
     read_at: Mapped[datetime | None] = mapped_column(sa.TIMESTAMP(timezone=True))
@@ -477,17 +479,18 @@ class AuditLog(Base):
     __table_args__ = (
         sa.Index("idx_audit_logs_user_id", "user_id", "created_at"),
         sa.Index("idx_audit_logs_entity", "entity_type", "entity_id", "created_at"),
+        sa.PrimaryKeyConstraint("id", "created_at"),
         {
             "postgresql_partition_by": "RANGE (created_at)",
         },
     )
 
-    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(sa.BigInteger, autoincrement=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="SET NULL")
     )
     action: Mapped[AuditAction] = mapped_column(
-        PgEnum(AuditAction, name="audit_action", create_type=False), nullable=False
+        PgEnum(AuditAction, name="audit_action"), nullable=False
     )
     entity_type: Mapped[str] = mapped_column(sa.String(50), nullable=False)
     entity_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True))

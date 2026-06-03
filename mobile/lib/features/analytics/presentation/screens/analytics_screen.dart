@@ -7,8 +7,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../fuel/presentation/providers/fuel_provider.dart';
-import '../../../../shared/models/models.dart';
+import '../providers/analytics_provider.dart';
+import '../../domain/analytics_models.dart';
 
 class AnalyticsScreen extends ConsumerWidget {
   const AnalyticsScreen({super.key, required this.vehicleId});
@@ -29,8 +29,7 @@ class AnalyticsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final fuelState = ref.watch(fuelNotifierProvider(vehicleId));
-    final logs = fuelState.valueOrNull ?? [];
+    final analyticsState = ref.watch(vehicleAnalyticsProvider(vehicleId));
 
     return Scaffold(
       backgroundColor: _bg,
@@ -59,17 +58,26 @@ class AnalyticsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      body: fuelState.isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                  color: _gold, strokeWidth: 2.5))
-          : logs.isEmpty
-              ? _buildEmptyState()
-              : _buildContent(context, logs),
+      body: analyticsState.when(
+        data: (summary) => _buildContent(context, summary),
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: _gold, strokeWidth: 2.5)),
+        error: (e, st) => Center(
+          child: Text(
+            'Failed to load analytics:\n$e',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: _danger),
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildContent(BuildContext context, List<FuelLog> logs) {
+  Widget _buildContent(BuildContext context, VehicleAnalyticsSummary summary) {
+    if (summary.totalFills == 0) {
+      return _buildEmptyState();
+    }
+
     return SingleChildScrollView(
       physics: const ClampingScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -77,14 +85,14 @@ class AnalyticsScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── KPI cards ─────────────────────────────────────────────
-          _buildKpiRow(logs).animate().fadeIn(duration: 500.ms),
+          _buildKpiRow(summary).animate().fadeIn(duration: 500.ms),
 
           const SizedBox(height: 24),
 
           // ── Monthly spend chart ────────────────────────────────────
           _buildSectionHeader('Monthly Fuel Spend'),
           const SizedBox(height: 12),
-          _buildMonthlySpendChart(logs)
+          _buildMonthlySpendChart(summary)
               .animate()
               .fadeIn(delay: 150.ms, duration: 500.ms),
 
@@ -93,27 +101,9 @@ class AnalyticsScreen extends ConsumerWidget {
           // ── Efficiency trend chart ─────────────────────────────────
           _buildSectionHeader('Fuel Efficiency Trend'),
           const SizedBox(height: 12),
-          _buildEfficiencyTrendChart(logs)
+          _buildEfficiencyTrendChart(summary)
               .animate()
               .fadeIn(delay: 250.ms, duration: 500.ms),
-
-          const SizedBox(height: 24),
-
-          // ── Cost per fill bar chart ────────────────────────────────
-          _buildSectionHeader('Cost Per Fill-Up'),
-          const SizedBox(height: 12),
-          _buildCostPerFillChart(logs)
-              .animate()
-              .fadeIn(delay: 350.ms, duration: 500.ms),
-
-          const SizedBox(height: 24),
-
-          // ── Price per litre trend ─────────────────────────────────
-          _buildSectionHeader('Price per Litre Trend'),
-          const SizedBox(height: 12),
-          _buildPriceTrendChart(logs)
-              .animate()
-              .fadeIn(delay: 450.ms, duration: 500.ms),
 
           const SizedBox(height: 100),
         ],
@@ -123,23 +113,8 @@ class AnalyticsScreen extends ConsumerWidget {
 
   // ─── KPI Row ───────────────────────────────────────────────────────────────
 
-  Widget _buildKpiRow(List<FuelLog> logs) {
-    final totalCost = logs.fold<double>(0, (s, l) => s + l.totalCost);
-    final totalVolume = logs.fold<double>(0, (s, l) => s + l.volumeLiters);
-    final validEfficiency =
-        logs.where((l) => l.efficiencyLper100km != null).toList();
-    final avgEff = validEfficiency.isEmpty
-        ? 0.0
-        : validEfficiency.fold<double>(
-                0, (s, l) => s + l.efficiencyLper100km!) /
-            validEfficiency.length;
-    final costPerKm = totalVolume > 0
-        ? (totalCost /
-            (logs
-                    .where((l) => l.distanceSinceLast != null)
-                    .fold<double>(0, (s, l) => s + l.distanceSinceLast!) /
-                1))
-        : 0.0;
+  Widget _buildKpiRow(VehicleAnalyticsSummary summary) {
+    final totalVolume = summary.monthlyStats.fold<double>(0, (s, m) => s + m.totalLiters);
 
     return Column(
       children: [
@@ -147,7 +122,7 @@ class AnalyticsScreen extends ConsumerWidget {
           children: [
             _KpiCard(
               label: 'Total Spend',
-              value: '₹${(totalCost / 1000).toStringAsFixed(1)}k',
+              value: '₹${(summary.totalFuelCost / 1000).toStringAsFixed(1)}k',
               icon: Icons.currency_rupee_rounded,
               color: _gold,
             ),
@@ -165,16 +140,16 @@ class AnalyticsScreen extends ConsumerWidget {
           children: [
             _KpiCard(
               label: 'Avg Efficiency',
-              value: validEfficiency.isEmpty
+              value: summary.avgEfficiencyLper100km == null
                   ? '--'
-                  : '${avgEff.toStringAsFixed(1)} L/100km',
+                  : '${summary.avgEfficiencyLper100km!.toStringAsFixed(1)} L/100km',
               icon: Icons.speed_rounded,
               color: _success,
             ),
             const SizedBox(width: 12),
             _KpiCard(
               label: 'Fill-ups',
-              value: '${logs.length}',
+              value: '${summary.totalFills}',
               icon: Icons.receipt_long_rounded,
               color: _warning,
             ),
@@ -186,17 +161,14 @@ class AnalyticsScreen extends ConsumerWidget {
 
   // ─── Monthly Spend Bar Chart ───────────────────────────────────────────────
 
-  Widget _buildMonthlySpendChart(List<FuelLog> logs) {
-    final Map<String, double> monthlyData = {};
-    for (final log in logs) {
-      final key = '${log.filledAt.month}/${log.filledAt.year % 100}';
-      monthlyData[key] = (monthlyData[key] ?? 0) + log.totalCost;
+  Widget _buildMonthlySpendChart(VehicleAnalyticsSummary summary) {
+    if (summary.monthlyStats.isEmpty) {
+      return _buildChartPlaceholder('No monthly data');
     }
 
-    final entries = monthlyData.entries.toList();
-    final maxY = entries.fold<double>(
-        0, (m, e) => e.value > m ? e.value : m);
-    final maxYRounded = ((maxY / 1000).ceil() * 1000).toDouble();
+    final entries = summary.monthlyStats;
+    final maxY = entries.fold<double>(0, (m, e) => e.totalCost > m ? e.totalCost : m);
+    final maxYRounded = ((maxY / 1000).ceil() * 1000).toDouble() + 1000;
 
     return Container(
       height: 220,
@@ -236,10 +208,11 @@ class AnalyticsScreen extends ConsumerWidget {
                   if (index < 0 || index >= entries.length) {
                     return const SizedBox.shrink();
                   }
+                  final month = entries[index].month;
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      entries[index].key,
+                      '${month.month}/${month.year % 100}',
                       style: const TextStyle(
                         fontFamily: 'Inter',
                         fontSize: 10,
@@ -268,10 +241,8 @@ class AnalyticsScreen extends ConsumerWidget {
                 },
               ),
             ),
-            topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           gridData: FlGridData(
             show: true,
@@ -288,15 +259,14 @@ class AnalyticsScreen extends ConsumerWidget {
               x: index,
               barRods: [
                 BarChartRodData(
-                  toY: entries[index].value,
+                  toY: entries[index].totalCost,
                   gradient: const LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
                     colors: [Color(0xFF8B6914), Color(0xFFD4AF37)],
                   ),
                   width: 22,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(6)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                 ),
               ],
             );
@@ -310,19 +280,14 @@ class AnalyticsScreen extends ConsumerWidget {
 
   // ─── Efficiency Trend Line Chart ───────────────────────────────────────────
 
-  Widget _buildEfficiencyTrendChart(List<FuelLog> logs) {
-    final validLogs = logs
-        .where((l) => l.efficiencyLper100km != null)
-        .toList()
-        .reversed
-        .toList();
-
-    if (validLogs.isEmpty) {
+  Widget _buildEfficiencyTrendChart(VehicleAnalyticsSummary summary) {
+    if (summary.efficiencyTrend.isEmpty) {
       return _buildChartPlaceholder('Not enough data for efficiency trend');
     }
 
-    final spots = validLogs.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.efficiencyLper100km!);
+    final trend = summary.efficiencyTrend;
+    final spots = trend.asMap().entries.map((e) {
+      return FlSpot(e.key.toDouble(), e.value.efficiencyLper100km);
     }).toList();
 
     final minY = spots.fold<double>(double.infinity, (m, s) => s.y < m ? s.y : m);
@@ -372,10 +337,10 @@ class AnalyticsScreen extends ConsumerWidget {
                 reservedSize: 28,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
-                  if (index < 0 || index >= validLogs.length) {
+                  if (index < 0 || index >= trend.length) {
                     return const SizedBox.shrink();
                   }
-                  final d = validLogs[index].filledAt;
+                  final d = trend[index].filledAt;
                   return Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
@@ -395,7 +360,7 @@ class AnalyticsScreen extends ConsumerWidget {
                 showTitles: true,
                 reservedSize: 44,
                 getTitlesWidget: (v, m) => Text(
-                  '${v.toStringAsFixed(0)}L',
+                  '${v.toStringAsFixed(1)}L',
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 9,
@@ -404,10 +369,8 @@ class AnalyticsScreen extends ConsumerWidget {
                 ),
               ),
             ),
-            topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -420,8 +383,7 @@ class AnalyticsScreen extends ConsumerWidget {
               isStrokeCapRound: true,
               dotData: FlDotData(
                 show: true,
-                getDotPainter: (spot, percent, bar, index) =>
-                    FlDotCirclePainter(
+                getDotPainter: (spot, percent, bar, index) => FlDotCirclePainter(
                   radius: 3.5,
                   color: _success,
                   strokeWidth: 1.5,
@@ -436,247 +398,6 @@ class AnalyticsScreen extends ConsumerWidget {
                   colors: [
                     _success.withOpacity(0.2),
                     _success.withOpacity(0.0),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        duration: const Duration(milliseconds: 800),
-        curve: Curves.easeOutQuart,
-      ),
-    );
-  }
-
-  // ─── Cost Per Fill Bar Chart ───────────────────────────────────────────────
-
-  Widget _buildCostPerFillChart(List<FuelLog> logs) {
-    final recent = logs.reversed.take(6).toList();
-    final maxY = recent.fold<double>(0, (m, l) => l.totalCost > m ? l.totalCost : m);
-    final maxYRounded = ((maxY / 500).ceil() * 500).toDouble();
-
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: BarChart(
-        BarChartData(
-          alignment: BarChartAlignment.spaceAround,
-          maxY: maxYRounded,
-          barTouchData: BarTouchData(
-            touchTooltipData: BarTouchTooltipData(
-              getTooltipColor: (_) => const Color(0xFF262626),
-              getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                return BarTooltipItem(
-                  '₹${rod.toY.toStringAsFixed(0)}',
-                  const TextStyle(
-                    fontFamily: 'Inter',
-                    color: _silver,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 12,
-                  ),
-                );
-              },
-            ),
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                getTitlesWidget: (value, meta) {
-                  final index = value.toInt();
-                  if (index < 0 || index >= recent.length) {
-                    return const SizedBox.shrink();
-                  }
-                  final d = recent[index].filledAt;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${d.day}/${d.month}',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 9,
-                        color: _textSub,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 48,
-                getTitlesWidget: (v, m) => Text(
-                  '₹${(v / 1000).toStringAsFixed(1)}k',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 9,
-                    color: _textSub,
-                  ),
-                ),
-              ),
-            ),
-            topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-          ),
-          gridData: FlGridData(
-            show: true,
-            getDrawingHorizontalLine: (v) =>
-                FlLine(color: _border, strokeWidth: 1, dashArray: [4, 4]),
-            drawVerticalLine: false,
-          ),
-          borderData: FlBorderData(show: false),
-          barGroups: List.generate(recent.length, (index) {
-            return BarChartGroupData(
-              x: index,
-              barRods: [
-                BarChartRodData(
-                  toY: recent[index].totalCost,
-                  gradient: const LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Color(0xFF555555), Color(0xFFC0C0C0)],
-                  ),
-                  width: 20,
-                  borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(6)),
-                ),
-              ],
-            );
-          }),
-        ),
-        swapAnimationDuration: const Duration(milliseconds: 800),
-        swapAnimationCurve: Curves.easeOutQuart,
-      ),
-    );
-  }
-
-  // ─── Price per Litre Line Chart ────────────────────────────────────────────
-
-  Widget _buildPriceTrendChart(List<FuelLog> logs) {
-    final reversed = logs.reversed.toList();
-    final spots = reversed.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.pricePerLiter);
-    }).toList();
-
-    final minY = spots.fold<double>(double.infinity, (m, s) => s.y < m ? s.y : m);
-    final maxY = spots.fold<double>(0, (m, s) => s.y > m ? s.y : m);
-
-    return Container(
-      height: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _card,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _border),
-      ),
-      child: LineChart(
-        LineChartData(
-          minY: (minY - 2).clamp(0, double.infinity),
-          maxY: maxY + 2,
-          lineTouchData: LineTouchData(
-            touchTooltipData: LineTouchTooltipData(
-              getTooltipColor: (_) => const Color(0xFF262626),
-              getTooltipItems: (spots) => spots
-                  .map((s) => LineTooltipItem(
-                        '₹${s.y.toStringAsFixed(1)}/L',
-                        const TextStyle(
-                          fontFamily: 'Inter',
-                          color: _warning,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 12,
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-          gridData: FlGridData(
-            show: true,
-            getDrawingHorizontalLine: (v) =>
-                FlLine(color: _border, strokeWidth: 1, dashArray: [4, 4]),
-            drawVerticalLine: false,
-          ),
-          titlesData: FlTitlesData(
-            show: true,
-            bottomTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 28,
-                getTitlesWidget: (value, meta) {
-                  final index = value.toInt();
-                  if (index < 0 || index >= reversed.length) {
-                    return const SizedBox.shrink();
-                  }
-                  final d = reversed[index].filledAt;
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      '${d.day}/${d.month}',
-                      style: const TextStyle(
-                        fontFamily: 'Inter',
-                        fontSize: 9,
-                        color: _textSub,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-            leftTitles: AxisTitles(
-              sideTitles: SideTitles(
-                showTitles: true,
-                reservedSize: 44,
-                getTitlesWidget: (v, m) => Text(
-                  '₹${v.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 9,
-                    color: _textSub,
-                  ),
-                ),
-              ),
-            ),
-            topTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-            rightTitles: const AxisTitles(
-                sideTitles: SideTitles(showTitles: false)),
-          ),
-          borderData: FlBorderData(show: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: spots,
-              isCurved: true,
-              curveSmoothness: 0.4,
-              color: _warning,
-              barWidth: 2.5,
-              isStrokeCapRound: true,
-              dotData: FlDotData(
-                show: true,
-                getDotPainter: (spot, percent, bar, index) =>
-                    FlDotCirclePainter(
-                  radius: 3.5,
-                  color: _warning,
-                  strokeWidth: 1.5,
-                  strokeColor: _card,
-                ),
-              ),
-              belowBarData: BarAreaData(
-                show: true,
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    _warning.withOpacity(0.15),
-                    _warning.withOpacity(0.0),
                   ],
                 ),
               ),
@@ -803,33 +524,29 @@ class _KpiCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, color: color, size: 16),
+            Row(
+              children: [
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: _textSub,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             Text(
               value,
               style: const TextStyle(
                 fontFamily: 'Inter',
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: _textPrimary,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 12,
-                color: _textSub,
               ),
             ),
           ],

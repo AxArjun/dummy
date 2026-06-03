@@ -1,0 +1,120 @@
+﻿=== FUELIQ VERIFICATION SCRIPT ===
+
+--- 1. FIREBASE AUTH ---
+Registering user: test_4cf7d3b3@example.com
+Success! UID: ux2LLGo05dcXJb1AJ4IPi3cftS43
+
+--- 2. SYNC USER ---
+POST /auth/sync-user payload: {"firebase_uid": "ux2LLGo05dcXJb1AJ4IPi3cftS43", "email": "test_4cf7d3b3@example.com", "display_name": "Test User", "avatar_url": null}
+Status: 201
+Response: {
+  "success": true,
+  "data": {
+    "id": "813695ea-bd84-41bb-9059-e35ccec644c0",
+    "clerk_id": "ux2LLGo05dcXJb1AJ4IPi3cftS43",
+    "email": "test_4cf7d3b3@example.com",
+    "display_name": "Test User",
+    "avatar_url": null,
+    "distance_unit": "km",
+    "volume_unit": "liters",
+    "currency": "INR",
+    "timezone": "Asia/Kolkata",
+    "created_at": "2026-06-03T18:47:08.710007Z"
+  },
+  "message": "Account created successfully"
+}
+
+--- 3. CREATE VEHICLE ---
+POST /vehicles payload: {"make": "Toyota", "model": "Camry", "year": 2024, "fuel_type": "petrol", "tank_capacity_liters": 60.0, "vehicle_type": "car", "initial_odometer": 0}
+Status: 201
+Response: {
+  "success": true,
+  "data": {
+    "id": "129506b3-2960-4958-9293-e1dc574d923f",
+    "make": "Toyota",
+    "model": "Camry",
+    "year": 2024,
+    "fuel_type": "petrol",
+    "vehicle_type": "car",
+    "license_plate": null,
+    "color": null,
+    "tank_capacity_liters": "60.0",
+    "initial_odometer": "0",
+    "current_odometer": "0",
+    "photo_url": null,
+    "is_primary": true,
+    "is_archived": false,
+    "created_at": "2026-06-03T18:47:10.937050Z",
+    "total_distance_km": null,
+    "total_fuel_cost": null,
+    "avg_efficiency_lper100km": null
+  },
+  "message": "Vehicle added to garage"
+}
+
+--- 4. GET VEHICLES (Garage Screen) ---
+Status: 200
+Response: {
+  "success": true,
+  "data": [
+    {
+      "id": "129506b3-2960-4958-9293-e1dc574d923f",
+      "make": "Toyota",
+      "model": "Camry",
+      "year": 2024,
+      "fuel_type": "petrol",
+      "vehicle_type": "car",
+      "license_plate": null,
+      "color": null,
+      "tank_capacity_liters": "60.00",
+      "initial_odometer": "0.00",
+      "current_odometer": "0.00",
+      "photo_url": null,
+      "is_primary": true,
+      "is_archived": false,
+      "created_at": "2026-06-03T18:47:10.937050Z",
+      "total_distance_km": null,
+      "total_fuel_cost": null,
+      "avg_efficiency_lper100km": null
+    }
+  ],
+  "message": null
+}
+
+--- 5. GET ANALYTICS ---
+Status: 200
+Response: {
+  "success": true,
+  "data": {
+    "vehicle_id": "129506b3-2960-4958-9293-e1dc574d923f",
+    "total_distance_km": "0.00",
+    "total_fuel_cost": "0",
+    "total_other_expenses": "0",
+    "total_service_cost": "0",
+    "total_cost_of_ownership": "0",
+    "avg_efficiency_lper100km": null,
+    "cost_per_km": null,
+    "total_fills": 0,
+    "monthly_stats": [],
+    "efficiency_trend": [],
+    "expense_breakdown": []
+  },
+  "message": null
+}
+
+--- 6. GET NOTIFICATIONS ---
+Status: 200
+Response: {
+  "success": true,
+  "data": {
+    "items": [],
+    "total": 0,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 0
+  },
+  "message": null
+}
+
+--- 7. LOGOUT ---
+Status: 204

@@ -137,7 +137,7 @@ class AnalyticsService:
                 FROM expenses
                 WHERE vehicle_id = :vid
                   AND deleted_at IS NULL
-                  AND category != 'fuel'
+                  AND category != 'FUEL'
             ),
             service_totals AS (
                 SELECT COALESCE(SUM(cost), 0) AS service_cost
@@ -176,7 +176,7 @@ class AnalyticsService:
                 COUNT(*) AS fill_count
             FROM fuel_logs
             WHERE vehicle_id = :vid
-              AND filled_at >= NOW() - (:months || ' months')::INTERVAL
+              AND filled_at >= NOW() - INTERVAL '1 month' * :months
               AND deleted_at IS NULL
             GROUP BY DATE_TRUNC('month', filled_at)
             ORDER BY month ASC
@@ -221,7 +221,7 @@ class AnalyticsService:
                 COUNT(*) AS transaction_count
             FROM expenses
             WHERE vehicle_id = :vid
-              AND expense_date >= CURRENT_DATE - (:months || ' months')::INTERVAL
+              AND expense_date >= CURRENT_DATE - INTERVAL '1 month' * :months
               AND deleted_at IS NULL
             GROUP BY category
             ORDER BY total_amount DESC
@@ -234,7 +234,7 @@ class AnalyticsService:
 
         return [
             ExpenseBreakdown(
-                category=ExpenseCategory(row["category"]),
+                category=ExpenseCategory[row["category"]],
                 total_amount=row["total_amount"],
                 transaction_count=row["transaction_count"],
                 percentage=round(float(row["total_amount"] / total) * 100, 1),

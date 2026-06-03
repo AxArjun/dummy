@@ -206,7 +206,7 @@ Sharding key: user_id (hash-based)
 #### Global State Architecture
 ```
 Global:
-  - User account (Clerk — their SaaS handles global auth)
+  - User account (Firebase — their SaaS handles global auth)
   - Fleet/subscription data (replicated to all regions)
 
 Regional:
