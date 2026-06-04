@@ -33,7 +33,11 @@ class Settings(BaseSettings):
     # ─── API ─────────────────────────────────────────────────────────────────
     API_V1_PREFIX: str = "/api/v1"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:3000"]
-    TRUSTED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
+    TRUSTED_HOSTS: list[str] = [
+        "localhost",
+        "127.0.0.1",
+        "192.168.1.2",
+    ]
 
     # ─── Database ────────────────────────────────────────────────────────────
     DATABASE_URL: PostgresDsn

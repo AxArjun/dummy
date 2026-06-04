@@ -14,7 +14,8 @@ class VehicleRepository {
     try {
       final response = await _dio.get('/vehicles');
       if (response.statusCode == 200) {
-        final List<dynamic> data = response.data['data']['items'] ?? response.data['data'];
+        final dataNode = response.data['data'];
+        final List<dynamic> data = (dataNode is List) ? dataNode : (dataNode['items'] ?? []);
         return data.map((json) => Vehicle.fromJson(json as Map<String, dynamic>)).toList();
       }
       return [];

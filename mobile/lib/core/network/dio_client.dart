@@ -9,7 +9,7 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 
 const _kBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://10.0.2.2:8000/api/v1', // Android emulator → localhost
+  defaultValue: 'http://192.168.1.2:8000/api/v1',
 );
 const _kConnectTimeout = Duration(seconds: 15);
 const _kReceiveTimeout = Duration(seconds: 30);
@@ -71,14 +71,25 @@ class AuthInterceptor extends Interceptor {
       return handler.next(options);
     }
 
-    // Fetch the live Firebase session token (cached internally by Firebase until expiry)
+    // Fetch Firebase ID token
     final token = await _getToken(false);
+
+    debugPrint('==============================');
+    debugPrint('[AuthInterceptor] REQUEST');
+    debugPrint('[AuthInterceptor] URI: ${options.uri}');
+    debugPrint('[AuthInterceptor] Token Exists: ${token != null}');
+    debugPrint('[AuthInterceptor] Token Length: ${token?.length ?? 0}');
+
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
+      debugPrint('[AuthInterceptor] Authorization header attached');
+    } else {
+      debugPrint('[AuthInterceptor] NO TOKEN AVAILABLE');
     }
 
-    // Inject request ID for backend tracing / log correlation
     options.headers['X-Request-ID'] = _generateRequestId();
+
+    debugPrint('==============================');
 
     handler.next(options);
   }

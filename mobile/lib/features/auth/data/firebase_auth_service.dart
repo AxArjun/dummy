@@ -63,11 +63,12 @@ class FirebaseAuthService {
       if (credential.user != null && !credential.user!.emailVerified) {
         await credential.user!.sendEmailVerification();
       }
-    } on FirebaseAuthException catch (e) {
-      debugPrint('[FirebaseAuthService] signUp error: ${e.message}');
-      throw _handleFirebaseError(e);
-    } catch (e) {
-      throw Exception('An unexpected error occurred during sign up.');
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] signUp error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] signUp unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -81,11 +82,12 @@ class FirebaseAuthService {
         email: email,
         password: password,
       );
-    } on FirebaseAuthException catch (e) {
-      debugPrint('[FirebaseAuthService] signIn error: ${e.message}');
-      throw _handleFirebaseError(e);
-    } catch (e) {
-      throw Exception('An unexpected error occurred during login.');
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] signIn error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] signIn unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -112,12 +114,12 @@ class FirebaseAuthService {
       );
 
       await _auth.signInWithCredential(credential);
-    } on FirebaseAuthException catch (e) {
-      debugPrint('[FirebaseAuthService] googleSignIn error: ${e.message}');
-      throw _handleFirebaseError(e);
-    } catch (e) {
-      debugPrint('[FirebaseAuthService] googleSignIn unexpected error: $e');
-      throw Exception(e.toString());
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] googleSignIn error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] googleSignIn unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -128,8 +130,12 @@ class FirebaseAuthService {
       if (user != null && !user.emailVerified) {
         await user.sendEmailVerification();
       }
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] sendVerificationEmail error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] sendVerificationEmail unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -137,8 +143,12 @@ class FirebaseAuthService {
   Future<void> reloadUser() async {
     try {
       await _auth.currentUser?.reload();
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] reloadUser error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] reloadUser unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -146,8 +156,12 @@ class FirebaseAuthService {
   Future<void> resetPassword(String email) async {
     try {
       await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      throw _handleFirebaseError(e);
+    } on FirebaseAuthException catch (e, st) {
+      debugPrint('[FirebaseAuthService] resetPassword error: ${e.message}\n$st');
+      Error.throwWithStackTrace(_handleFirebaseError(e), st);
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] resetPassword unexpected error: $e\n$st');
+      rethrow;
     }
   }
 
@@ -158,8 +172,9 @@ class FirebaseAuthService {
         _auth.signOut(),
         if (await _googleSignIn.isSignedIn()) _googleSignIn.signOut(),
       ]);
-    } catch (e) {
-      debugPrint('[FirebaseAuthService] signOut error: $e');
+    } catch (e, st) {
+      debugPrint('[FirebaseAuthService] signOut error: $e\n$st');
+      rethrow;
     }
   }
 

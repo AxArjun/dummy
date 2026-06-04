@@ -14,6 +14,7 @@ import '../../features/auth/presentation/screens/splash_screen.dart';
 // Import Garage & Profile screens (Assuming these exist based on the prompt context)
 import '../../features/garage/presentation/screens/garage_screen.dart';
 import '../../features/garage/presentation/screens/vehicle_detail_screen.dart';
+import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/notifications/presentation/notifications_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/settings_screen.dart';
@@ -80,6 +81,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: AppRoutes.garage,
             builder: (context, state) => const GarageScreen(),
+          ),
+          GoRoute(
+            path: '/garage/:vehicleId/analytics',
+            builder: (context, state) {
+              final vehicleId = state.pathParameters['vehicleId']!;
+              return AnalyticsScreen(vehicleId: vehicleId);
+            },
           ),
           GoRoute(
             path: AppRoutes.addVehicle,

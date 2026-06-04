@@ -13,7 +13,8 @@ class MonthlyFuelStat with _$MonthlyFuelStat {
     required int fillCount,
   }) = _MonthlyFuelStat;
 
-  factory MonthlyFuelStat.fromJson(Map<String, dynamic> json) => _$MonthlyFuelStatFromJson(json);
+  factory MonthlyFuelStat.fromJson(Map<String, dynamic> json) =>
+      _$MonthlyFuelStatFromJson(json);
 }
 
 @freezed
@@ -25,7 +26,8 @@ class EfficiencyTrendPoint with _$EfficiencyTrendPoint {
     required double odometerReading,
   }) = _EfficiencyTrendPoint;
 
-  factory EfficiencyTrendPoint.fromJson(Map<String, dynamic> json) => _$EfficiencyTrendPointFromJson(json);
+  factory EfficiencyTrendPoint.fromJson(Map<String, dynamic> json) =>
+      _$EfficiencyTrendPointFromJson(json);
 }
 
 @freezed
@@ -37,7 +39,8 @@ class ExpenseBreakdown with _$ExpenseBreakdown {
     required double percentage,
   }) = _ExpenseBreakdown;
 
-  factory ExpenseBreakdown.fromJson(Map<String, dynamic> json) => _$ExpenseBreakdownFromJson(json);
+  factory ExpenseBreakdown.fromJson(Map<String, dynamic> json) =>
+      _$ExpenseBreakdownFromJson(json);
 }
 
 @freezed
@@ -57,5 +60,6 @@ class VehicleAnalyticsSummary with _$VehicleAnalyticsSummary {
     required List<ExpenseBreakdown> expenseBreakdown,
   }) = _VehicleAnalyticsSummary;
 
-  factory VehicleAnalyticsSummary.fromJson(Map<String, dynamic> json) => _$VehicleAnalyticsSummaryFromJson(json);
+  factory VehicleAnalyticsSummary.fromJson(Map<String, dynamic> json) =>
+      _$VehicleAnalyticsSummaryFromJson(json);
 }

@@ -1,6 +1,3 @@
-// FuelIQ — Home Screen
-// Shell widget with premium bottom navigation bar
-
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -36,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
       label: 'Analytics',
       icon: Icons.bar_chart_outlined,
       activeIcon: Icons.bar_chart_rounded,
-      route: '/garage/demo/analytics',
+      route: '/analytics-placeholder',
     ),
     _NavTab(
       label: 'Alerts',
@@ -54,17 +51,35 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _onDestinationSelected(int index) {
     if (index == _selectedIndex) return;
+
+    final tabRoute = _tabs[index].route;
+
+    // Temporary safe analytics handler
+    if (tabRoute == '/analytics-placeholder') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open a vehicle from Garage to view analytics.',
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() => _selectedIndex = index);
-    context.go(_tabs[index].route);
+    context.go(tabRoute);
   }
 
   @override
   Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final currentIndex = _computeIndex(location);
+
     if (currentIndex != _selectedIndex) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) setState(() => _selectedIndex = currentIndex);
+        if (mounted) {
+          setState(() => _selectedIndex = currentIndex);
+        }
       });
     }
 
@@ -77,7 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   int _computeIndex(String location) {
     if (location.startsWith('/notifications')) return 2;
-    if (location.startsWith('/profile')) return 3;
+    if (location.startsWith('/profile') ||
+        location.startsWith('/settings')) {
+      return 3;
+    }
     if (location.contains('/analytics')) return 1;
     return 0;
   }
@@ -87,7 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
       decoration: BoxDecoration(
         color: _surface,
         border: const Border(
-          top: BorderSide(color: _border, width: 1),
+          top: BorderSide(
+            color: _border,
+            width: 1,
+          ),
         ),
         boxShadow: [
           BoxShadow(
@@ -99,11 +120,15 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: 8,
+            vertical: 8,
+          ),
           child: Row(
             children: List.generate(_tabs.length, (index) {
               final tab = _tabs[index];
               final isSelected = _selectedIndex == index;
+
               return Expanded(
                 child: GestureDetector(
                   onTap: () => _onDestinationSelected(index),
@@ -112,7 +137,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
                     padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 4),
+                      vertical: 10,
+                      horizontal: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected
                           ? _gold.withOpacity(0.1)
@@ -125,9 +152,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 200),
                           child: Icon(
-                            isSelected ? tab.activeIcon : tab.icon,
+                            isSelected
+                                ? tab.activeIcon
+                                : tab.icon,
                             key: ValueKey(isSelected),
-                            color: isSelected ? _gold : _textSub,
+                            color: isSelected
+                                ? _gold
+                                : _textSub,
                             size: 24,
                           ),
                         ),
@@ -140,18 +171,22 @@ class _HomeScreenState extends State<HomeScreen> {
                             fontWeight: isSelected
                                 ? FontWeight.w700
                                 : FontWeight.w400,
-                            color: isSelected ? _gold : _textSub,
+                            color: isSelected
+                                ? _gold
+                                : _textSub,
                             letterSpacing: 0.3,
                           ),
                         ),
                       ],
                     ),
-                  ).animate(target: isSelected ? 1 : 0).scale(
-                        begin: const Offset(0.95, 0.95),
-                        end: const Offset(1, 1),
-                        curve: Curves.easeOutBack,
-                        duration: 200.ms,
-                      ),
+                  ).animate(
+                    target: isSelected ? 1 : 0,
+                  ).scale(
+                    begin: const Offset(0.95, 0.95),
+                    end: const Offset(1, 1),
+                    curve: Curves.easeOutBack,
+                    duration: 200.ms,
+                  ),
                 ),
               );
             }),

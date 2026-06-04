@@ -66,11 +66,15 @@ class AuthRepository {
         return AppUser.fromJson(response.data['data'] as Map<String, dynamic>);
       }
       return null;
-    } on DioException catch (e) {
+    } on DioException catch (e, st) {
       debugPrint('[AuthRepository] syncUser DioException: ${e.message}');
+      debugPrint('[AuthRepository] Status Code: ${e.response?.statusCode}');
+      debugPrint('[AuthRepository] Response Body: ${e.response?.data}');
+      debugPrint('[AuthRepository] StackTrace: $st');
       return null;
-    } catch (e) {
+    } catch (e, st) {
       debugPrint('[AuthRepository] syncUser error: $e');
+      debugPrint('[AuthRepository] StackTrace: $st');
       return null;
     }
   }

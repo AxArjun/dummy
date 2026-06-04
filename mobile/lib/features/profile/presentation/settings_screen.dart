@@ -30,6 +30,18 @@ class SettingsScreen extends ConsumerWidget {
     final profileState = ref.watch(profileProvider);
     final settings = profileState.valueOrNull ?? const SettingsState();
 
+    ref.listen<AsyncValue<SettingsState>>(profileProvider, (_, next) {
+      if (next is AsyncError && !next.isLoading) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save settings: ${next.error}'),
+            backgroundColor: const Color(0xFFF44336), // _danger
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(

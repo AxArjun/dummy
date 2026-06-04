@@ -83,12 +83,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         environment=settings.APP_ENV,
     )
     
-    # Initialize Firebase Admin SDK
+    # Initialize Firebase Admin SDK (single source of truth)
     try:
+        cred_dict = json.loads(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
+        cred = credentials.Certificate(cred_dict)
+        firebase_admin.initialize_app(cred)
+        logger.info("firebase_admin_initialized", method="service_account")
+    except (json.JSONDecodeError, KeyError) as parse_err:
+        logger.warning(
+            "firebase_service_account_parse_failed",
+            error=str(parse_err),
+            fallback="adc",
+        )
         firebase_admin.initialize_app()
-        logger.info("firebase_admin_initialized")
+        logger.info("firebase_admin_initialized", method="adc_fallback")
     except ValueError:
-        # Already initialized
+        # Already initialized (e.g. during tests)
         pass
     except Exception as e:
         logger.error("firebase_admin_initialization_failed", error=str(e))

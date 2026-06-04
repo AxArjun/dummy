@@ -2,14 +2,12 @@
 FuelIQ — Notification Service + FCM Integration
 Firebase Cloud Messaging push notifications with fallback handling.
 """
-import json
 import uuid
 from datetime import datetime, UTC
 from typing import Any
 
 import structlog
-import firebase_admin
-from firebase_admin import credentials, messaging
+from firebase_admin import messaging
 from firebase_admin.exceptions import FirebaseError
 
 from app.config.settings import get_settings
@@ -18,22 +16,6 @@ from app.repositories.base_repository import BaseRepository
 
 logger = structlog.get_logger(__name__)
 settings = get_settings()
-
-_firebase_initialized = False
-
-
-def _init_firebase() -> None:
-    global _firebase_initialized
-    if not _firebase_initialized:
-        try:
-            cred_dict = json.loads(settings.FIREBASE_SERVICE_ACCOUNT_JSON)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-            _firebase_initialized = True
-            logger.info("firebase_initialized")
-        except Exception as e:
-            logger.error("firebase_init_failed", error=str(e))
-            raise
 
 
 class NotificationPayload:
@@ -79,7 +61,8 @@ class FCMService:
     """
 
     def __init__(self):
-        _init_firebase()
+        # Firebase Admin SDK is initialized in app lifespan (main.py)
+        pass
 
     async def send_to_device(
         self,

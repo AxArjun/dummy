@@ -57,10 +57,10 @@ async def get_current_user(
 
     # Verify Firebase JWT
     try:
-        logger.info(f"Checking token: {token}")
-        if "mock_" in token:
-            logger.info("Token has mock_")
-            decoded_token = {"uid": token.split("mock_")[1].strip()}
+        # Development-only mock tokens (NEVER executes in production/staging)
+        if settings.is_development and token.startswith("mock_"):
+            logger.warning("mock_token_used", note="dev-only bypass")
+            decoded_token = {"uid": token.removeprefix("mock_")}
         else:
             decoded_token = await run_in_threadpool(
                 firebase_auth.verify_id_token, token, check_revoked=False

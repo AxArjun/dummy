@@ -202,6 +202,7 @@ class Vehicle(Base, TimestampMixin, SoftDeleteMixin):
             name="uq_one_primary_vehicle",
             # Partial unique enforced via DB migration DDL
         ),
+        sa.CheckConstraint("year >= 1900 AND year <= 2030", name="chk_vehicle_year_range"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -282,7 +283,6 @@ class FuelLog(Base, TimestampMixin, SoftDeleteMixin):
     )
 
     odometer_reading: Mapped[Decimal] = mapped_column(sa.Numeric(10, 2), nullable=False)
-    filled_at: Mapped[datetime] = mapped_column(sa.TIMESTAMP(timezone=True))
     volume_liters: Mapped[Decimal] = mapped_column(sa.Numeric(8, 3), nullable=False)
     price_per_liter: Mapped[Decimal] = mapped_column(sa.Numeric(8, 4), nullable=False)
 
@@ -308,7 +308,7 @@ class FuelLog(Base, TimestampMixin, SoftDeleteMixin):
         sa.TIMESTAMP(timezone=True), nullable=False, server_default=sa.func.now()
     )
 
-    # Relationships
+    # Relationships  # noqa: E800 — filled_at declared once above (duplicate removed)
     vehicle: Mapped["Vehicle"] = relationship("Vehicle", back_populates="fuel_logs")
 
     def __repr__(self) -> str:
